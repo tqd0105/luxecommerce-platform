@@ -1,6 +1,7 @@
 import { SiteHeader } from "@/components/storefront/site-header";
 import { SiteFooter } from "@/components/storefront/site-footer";
 import { AuthModal } from "@/components/auth/auth-modal";
+import { ChatWidget } from "@/components/storefront/chatbot/chat-widget";
 
 export default function StorefrontLayout({
   children,
@@ -15,6 +16,8 @@ export default function StorefrontLayout({
       </main>
       <SiteFooter />
       <AuthModal />
+      <ChatWidget />
     </div>
   );
 }
+

@@ -50,6 +50,7 @@ export function SiteHeader() {
   const [isSearching, setIsSearching] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -94,8 +95,51 @@ export function SiteHeader() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const scrollToTop = () => {
+    if (typeof window !== "undefined") {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }
+  };
+
+  const handleMobileNav = (href: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    setIsMobileMenuOpen(false);
+    scrollToTop();
+
+    setTimeout(() => {
+      if (pathname !== href) {
+        router.push(href);
+      }
+      scrollToTop();
+    }, 100);
+
+    setTimeout(() => {
+      scrollToTop();
+    }, 350);
+  };
+
   useEffect(() => {
-    const timer = setTimeout(() => setShowSuggestions(false), 0);
+    if (typeof window !== "undefined" && "scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+    const timer = setTimeout(() => {
+      setShowSuggestions(false);
+      setIsMobileMenuOpen(false);
+    }, 0);
+    if (typeof window !== "undefined" && !window.location.hash) {
+      scrollToTop();
+      const scrollTimer = setTimeout(() => {
+        scrollToTop();
+      }, 350);
+      return () => {
+        clearTimeout(timer);
+        clearTimeout(scrollTimer);
+      };
+    }
     return () => clearTimeout(timer);
   }, [pathname]);
 
@@ -153,13 +197,17 @@ export function SiteHeader() {
         <div className="flex items-center gap-1.5 md:gap-4 order-1 min-w-0 pr-2">
           {/* Mobile Menu */}
           <div className="flex lg:hidden items-center shrink-0 ">
-            <Sheet>
+            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="mr-1 md:mr-2 h-9 w-9">
                   <Image src="/icons/menu2.png" alt="Logo" width={25} height={25} />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-[310px] sm:w-[360px] p-0 flex flex-col h-full bg-background/80 backdrop-blur-2xl overflow-hidden border-r border-border/50 shadow-2xl">
+              <SheetContent
+                side="left"
+                onCloseAutoFocus={(e) => e.preventDefault()}
+                className="w-[310px] sm:w-[360px] p-0 flex flex-col h-full bg-background/80 backdrop-blur-2xl overflow-hidden border-r border-border/50 shadow-2xl"
+              >
                 <SheetTitle className="sr-only">Menu Điều Hướng</SheetTitle>
                 {/* 1. Header Khu Vực Tài Khoản */}
                 <div className="p-6 pb-5 bg-card/40 border-b border-border/50 relative">
@@ -196,14 +244,13 @@ export function SiteHeader() {
 
                         {/* Nút vào Bảng Quản Trị dành riêng cho Admin */}
                         {role === "admin" && (
-                          <SheetClose asChild>
-                            <Link
-                              href="/dashboard"
-                              className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-[14px] bg-gradient-to-r from-red-600 to-amber-600 text-white font-bold text-[14.5px] shadow-md shadow-red-500/20 hover:opacity-90 hover:scale-[1.02] transition-all duration-300"
-                            >
-                              <Image src="/icons/dashboard3.png" alt="Logo" width={22} height={22} className="object-contain" /> Bảng Quản Trị (Admin)
-                            </Link>
-                          </SheetClose>
+                          <Link
+                            href="/dashboard"
+                            onClick={(e) => handleMobileNav("/dashboard", e)}
+                            className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-[14px] bg-gradient-to-r from-red-600 to-amber-600 text-white font-bold text-[14.5px] shadow-md shadow-red-500/20 hover:opacity-90 hover:scale-[1.02] transition-all duration-300"
+                          >
+                            <Image src="/icons/dashboard3.png" alt="Logo" width={22} height={22} className="object-contain" /> Bảng Quản Trị (Admin)
+                          </Link>
                         )}
                       </div>
                     ) : (
@@ -251,32 +298,30 @@ export function SiteHeader() {
                     <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80 mb-2">
                       Khám phá
                     </p>
-                    <SheetClose asChild>
-                      <Link
-                        href="/"
-                        className={cn(
-                          "flex items-center gap-3 px-3.5 py-3 rounded-[14px] font-bold text-[14.5px] transition-all duration-200",
-                          pathname === "/" ? "bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20" : "text-foreground/70 hover:bg-muted/50 hover:text-foreground"
-                        )}
-                      >
-                        <Image src="/icons/home_black.png" alt="Home" width={22} height={22} className="dark:hidden" />
-                        <Image src="/icons/home_white.png" alt="Home" width={22} height={22} className="hidden dark:block" />
-                        Trang chủ
-                      </Link>
-                    </SheetClose>
-                    <SheetClose asChild>
-                      <Link
-                        href="/products"
-                        className={cn(
-                          "flex items-center gap-3 px-3.5 py-3 rounded-[14px] font-bold text-[14.5px] transition-all duration-200",
-                          pathname?.startsWith("/products") ? "bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20" : "text-foreground/70 hover:bg-muted/50 hover:text-foreground"
-                        )}
-                      >
-                        <Image src="/icons/product_black.png" alt="Products" width={22} height={22} className="dark:hidden" />
-                        <Image src="/icons/product_white.png" alt="Products" width={22} height={22} className="hidden dark:block" />
-                        Tất cả sản phẩm
-                      </Link>
-                    </SheetClose>
+                    <Link
+                      href="/"
+                      onClick={(e) => handleMobileNav("/", e)}
+                      className={cn(
+                        "flex items-center gap-3 px-3.5 py-3 rounded-[14px] font-bold text-[14.5px] transition-all duration-200",
+                        pathname === "/" ? "bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20" : "text-foreground/70 hover:bg-muted/50 hover:text-foreground"
+                      )}
+                    >
+                      <Image src="/icons/home_black.png" alt="Home" width={22} height={22} className="dark:hidden" />
+                      <Image src="/icons/home_white.png" alt="Home" width={22} height={22} className="hidden dark:block" />
+                      Trang chủ
+                    </Link>
+                    <Link
+                      href="/products"
+                      onClick={(e) => handleMobileNav("/products", e)}
+                      className={cn(
+                        "flex items-center gap-3 px-3.5 py-3 rounded-[14px] font-bold text-[14.5px] transition-all duration-200",
+                        pathname?.startsWith("/products") ? "bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20" : "text-foreground/70 hover:bg-muted/50 hover:text-foreground"
+                      )}
+                    >
+                      <Image src="/icons/product_black.png" alt="Products" width={22} height={22} className="dark:hidden" />
+                      <Image src="/icons/product_white.png" alt="Products" width={22} height={22} className="hidden dark:block" />
+                      Tất cả sản phẩm
+                    </Link>
                     {/* Cart link — ẩn với Admin và Staff */}
                     {/* {role !== "admin" && role !== "staff" && (
                       <SheetClose asChild>
@@ -317,45 +362,41 @@ export function SiteHeader() {
                       <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80 mb-2 mt-2">
                         Tài khoản của tôi
                       </p>
-                      <SheetClose asChild>
-                        <Link
-                          href="/cart"
-                          className="flex items-center justify-between px-3.5 py-3 rounded-[14px] font-bold text-[14.5px] text-foreground/70 hover:bg-muted/50 hover:text-foreground transition-all duration-200"
-                        >
-                          <span className="flex items-center gap-3">
-                            <ShoppingCart className="w-5 h-5 text-blue-500" /> Giỏ hàng
+                      <Link
+                        href="/cart"
+                        onClick={(e) => handleMobileNav("/cart", e)}
+                        className="flex items-center justify-between px-3.5 py-3 rounded-[14px] font-bold text-[14.5px] text-foreground/70 hover:bg-muted/50 hover:text-foreground transition-all duration-200"
+                      >
+                        <span className="flex items-center gap-3">
+                          <ShoppingCart className="w-5 h-5 text-blue-500" /> Giỏ hàng
+                        </span>
+                        {cartCount > 0 && (
+                          <span className="bg-red-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                            {cartCount}
                           </span>
-                          {cartCount > 0 && (
-                            <span className="bg-red-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-sm">
-                              {cartCount}
-                            </span>
-                          )}
-                        </Link>
-                      </SheetClose>
-                      <SheetClose asChild>
-                        <Link
-                          href="/account/orders"
-                          className="flex items-center gap-3 px-3.5 py-3 rounded-[14px] font-bold text-[14.5px] text-foreground/70 hover:bg-muted/50 hover:text-foreground transition-all duration-200"
-                        >
-                          <BoxIcon className="w-5 h-5 text-amber-500" /> Lịch sử đơn hàng
-                        </Link>
-                      </SheetClose>
-                      <SheetClose asChild>
-                        <Link
-                          href="/account/addresses"
-                          className="flex items-center gap-3 px-3.5 py-3 rounded-[14px] font-bold text-[14.5px] text-foreground/70 hover:bg-muted/50 hover:text-foreground transition-all duration-200"
-                        >
-                          <MapPin className="w-5 h-5 text-emerald-500" /> Sổ địa chỉ nhận hàng
-                        </Link>
-                      </SheetClose>
-                      <SheetClose asChild>
-                        <Link
-                          href="/account/settings"
-                          className="flex items-center gap-3 px-3.5 py-3 rounded-[14px] font-bold text-[14.5px] text-foreground/70 hover:bg-muted/50 hover:text-foreground transition-all duration-200"
-                        >
-                          <Settings className="w-5 h-5 text-gray-500" /> Cài đặt tài khoản
-                        </Link>
-                      </SheetClose>
+                        )}
+                      </Link>
+                      <Link
+                        href="/account/orders"
+                        onClick={(e) => handleMobileNav("/account/orders", e)}
+                        className="flex items-center gap-3 px-3.5 py-3 rounded-[14px] font-bold text-[14.5px] text-foreground/70 hover:bg-muted/50 hover:text-foreground transition-all duration-200"
+                      >
+                        <BoxIcon className="w-5 h-5 text-amber-500" /> Lịch sử đơn hàng
+                      </Link>
+                      <Link
+                        href="/account/addresses"
+                        onClick={(e) => handleMobileNav("/account/addresses", e)}
+                        className="flex items-center gap-3 px-3.5 py-3 rounded-[14px] font-bold text-[14.5px] text-foreground/70 hover:bg-muted/50 hover:text-foreground transition-all duration-200"
+                      >
+                        <MapPin className="w-5 h-5 text-emerald-500" /> Sổ địa chỉ nhận hàng
+                      </Link>
+                      <Link
+                        href="/account/settings"
+                        onClick={(e) => handleMobileNav("/account/settings", e)}
+                        className="flex items-center gap-3 px-3.5 py-3 rounded-[14px] font-bold text-[14.5px] text-foreground/70 hover:bg-muted/50 hover:text-foreground transition-all duration-200"
+                      >
+                        <Settings className="w-5 h-5 text-gray-500" /> Cài đặt tài khoản
+                      </Link>
                     </div>
                   )}
 
@@ -365,15 +406,14 @@ export function SiteHeader() {
                       <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80 mb-2 mt-2">
                         Khu vực nội bộ
                       </p>
-                      <SheetClose asChild>
-                        <Link
-                          href="/dashboard"
-                          className="flex items-center gap-3 px-3.5 py-3 rounded-[14px] font-bold text-[14.5px] bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 shadow-sm transition-all duration-200"
-                        >
-                          <Image src="/icons/dashboard5.png" alt="Logo" width={22} height={22} />
-                          Bảng điều hành (Staff)
-                        </Link>
-                      </SheetClose>
+                      <Link
+                        href="/dashboard"
+                        onClick={(e) => handleMobileNav("/dashboard", e)}
+                        className="flex items-center gap-3 px-3.5 py-3 rounded-[14px] font-bold text-[14.5px] bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 shadow-sm transition-all duration-200"
+                      >
+                        <Image src="/icons/dashboard5.png" alt="Logo" width={22} height={22} />
+                        Bảng điều hành (Staff)
+                      </Link>
                     </div>
                   )}
                 </div>

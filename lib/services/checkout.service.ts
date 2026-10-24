@@ -1,6 +1,7 @@
 import { supabase } from "../supabase/client";
 import { getCart } from "./cart.service";
 import { createPayment } from "./payment.service";
+import { calculateShippingFee } from "./shipping.service";
 
 export interface CheckoutData {
   fullName: string;
@@ -11,6 +12,10 @@ export interface CheckoutData {
   couponId?: string;
   selectedAddressId?: string;
   saveToAddressBook?: boolean;
+  shippingFee?: number;
+  distanceKm?: number;
+  latitude?: number;
+  longitude?: number;
 }
 
 export async function placeOrder(checkoutData: CheckoutData) {
@@ -61,6 +66,31 @@ export async function placeOrder(checkoutData: CheckoutData) {
     }
   }
 
+  // 1.8 Chống bypass: Xác thực tọa độ GPS bắt buộc và tự động tính lại phí vận chuyển trên server
+  const lat = Number(checkoutData.latitude);
+  const lng = Number(checkoutData.longitude);
+
+  if (
+    isNaN(lat) ||
+    isNaN(lng) ||
+    lat < 8.0 || lat > 24.5 ||
+    lng < 102.0 || lng > 110.5
+  ) {
+    return {
+      data: null,
+      error: new Error("Tọa độ vị trí giao hàng không hợp lệ hoặc chưa được xác thực. Vui lòng định vị vị trí chuẩn trước khi đặt hàng."),
+    };
+  }
+
+  // Luôn tự động tính toán lại chi phí vận chuyển chuẩn từ server dựa trên giá trị đơn và tọa độ GPS
+  // Tuyệt đối không tin tưởng shippingFee thô gửi từ client để ngăn chặn bypass / giả mạo giá tiền
+  const verifiedShipping = calculateShippingFee(totalAmount, { lat, lng });
+  const verifiedShippingFee = verifiedShipping.shippingFee;
+  const verifiedDistanceKm = verifiedShipping.distanceKm;
+
+  // Cộng phí vận chuyển đã kiểm chứng vào tổng đơn hàng
+  totalAmount += verifiedShippingFee;
+
   // 2. Create or find Address
   let addressId = checkoutData.selectedAddressId;
 
@@ -76,6 +106,11 @@ export async function placeOrder(checkoutData: CheckoutData) {
 
     if (existing) {
       addressId = existing.id;
+      // Cập nhật tọa độ GPS mới nhất cho địa chỉ đã có
+      await supabase
+        .from("addresses")
+        .update({ latitude: lat, longitude: lng })
+        .eq("id", existing.id);
     } else {
       const { count } = await supabase.from("addresses").select("*", { count: "exact", head: true }).eq("user_id", userId);
       const isFirst = (count === 0);
@@ -88,6 +123,8 @@ export async function placeOrder(checkoutData: CheckoutData) {
           phone: checkoutData.phone,
           street: checkoutData.street,
           city: checkoutData.city,
+          latitude: lat,
+          longitude: lng,
           is_default: isFirst
         })
         .select("id")
@@ -95,6 +132,12 @@ export async function placeOrder(checkoutData: CheckoutData) {
       if (addressError) return { data: null, error: addressError };
       addressId = newAddr.id;
     }
+  } else {
+    // Đảm bảo địa chỉ đã chọn được lưu tọa độ chuẩn
+    await supabase
+      .from("addresses")
+      .update({ latitude: lat, longitude: lng })
+      .eq("id", addressId);
   }
 
   // 3. Create Order
@@ -104,6 +147,8 @@ export async function placeOrder(checkoutData: CheckoutData) {
       user_id: userId,
       status: "pending",
       total_amount: totalAmount,
+      shipping_fee: verifiedShippingFee,
+      distance_km: verifiedDistanceKm,
       shipping_address_id: addressId,
       payment_method: checkoutData.paymentMethod,
       coupon_id: checkoutData.couponId || null,
@@ -135,8 +180,15 @@ export async function placeOrder(checkoutData: CheckoutData) {
     .insert(orderItemsPayload);
 
   if (itemsError) {
-    // If this fails, the order is created but empty. In a real system we'd use a postgres function with transactions.
-    return { data: null, error: itemsError };
+    // Nếu thất bại (vd: trigger kiểm tra thấy hết hàng), dọn dẹp đơn dở dang và hoàn coupon
+    await supabase.from("orders").delete().eq("id", order.id);
+    if (checkoutData.couponId) {
+      const { data: curCoupon } = await supabase.from("coupons").select("used_count").eq("id", checkoutData.couponId).single();
+      if (curCoupon && curCoupon.used_count > 0) {
+        await supabase.from("coupons").update({ used_count: curCoupon.used_count - 1 }).eq("id", checkoutData.couponId);
+      }
+    }
+    return { data: null, error: new Error(itemsError.message || "Kho hàng không đủ số lượng cho sản phẩm bạn chọn!") };
   }
 
   // 5. Clear the Cart

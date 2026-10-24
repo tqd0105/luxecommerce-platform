@@ -29,6 +29,8 @@ Xây dựng một hệ thống E-commerce tích hợp hoàn chỉnh bao gồm: m
 3. **Marketing:** Promo Banners, Mã giảm giá (Coupons).
 4. **Shopping:** Giỏ hàng (Cart), Đơn hàng (Orders), Chi tiết đơn hàng (Order Items).
 5. **Customer:** Hồ sơ (Profiles), Địa chỉ nhận hàng (Addresses), Yêu thích (Wishlists), Đánh giá (Reviews).
+6. **AI Assistant:** Trợ lý ảo tư vấn bán hàng Luxe Assistant (Google Gemini Flash API, Supabase Inventory Grounding, Chat Widget toàn hệ thống).
+
 
 ## Dòng chảy khách hàng (Customer flow)
 1. **Truy cập & Duyệt:** Khách xem trang chủ (banner, sản phẩm nổi bật, sale), tìm kiếm hoặc lọc theo danh mục.

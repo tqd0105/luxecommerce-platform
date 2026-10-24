@@ -5,6 +5,7 @@ export interface Coupon {
   code: string;
   title?: string;
   discount_percent: number;
+  min_order_amount?: number;
   valid_until: string;
   usage_limit?: number;
   used_count: number;
@@ -93,7 +94,7 @@ export async function setFeaturedCoupon(id: string) {
   return { data: data as Coupon | null, error };
 }
 
-export async function validateCoupon(code: string) {
+export async function validateCoupon(code: string, currentOrderAmount?: number) {
   const { data, error } = await supabase
     .from("coupons")
     .select("*")
@@ -117,5 +118,45 @@ export async function validateCoupon(code: string) {
     return { data: null, error: new Error("Mã giảm giá đã hết lượt sử dụng") };
   }
 
+  // Check min_order_amount (giá trị đơn hàng tối thiểu)
+  if (currentOrderAmount !== undefined && coupon.min_order_amount && coupon.min_order_amount > 0) {
+    if (currentOrderAmount < coupon.min_order_amount) {
+      const formattedMin = new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: "VND",
+      }).format(coupon.min_order_amount);
+      return {
+        data: null,
+        error: new Error(`Mã này chỉ áp dụng cho đơn hàng từ ${formattedMin} trở lên`),
+      };
+    }
+  }
+
   return { data: coupon, error: null };
 }
+
+export async function getActiveCoupons() {
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("coupons")
+    .select("*")
+    .eq("is_active", true)
+    .gt("valid_until", now)
+    .order("discount_percent", { ascending: false });
+
+  if (error) {
+    console.error("Lỗi khi lấy danh sách mã giảm giá khả dụng:", error);
+    return { data: [] as Coupon[], error };
+  }
+
+  // Lọc thêm các mã chưa vượt quá usage_limit
+  const validCoupons = (data as Coupon[]).filter((c) => {
+    if (c.usage_limit && c.usage_limit > 0 && c.used_count >= c.usage_limit) {
+      return false;
+    }
+    return true;
+  });
+
+  return { data: validCoupons, error: null };
+}
+

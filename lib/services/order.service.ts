@@ -12,7 +12,7 @@ export async function getOrders(
 ) {
   let query = supabase
     .from("orders")
-    .select("*, profiles(full_name, email, phone), addresses(full_name, street, city, phone), payments(payment_code, status, amount, expires_at)", { count: "exact" });
+    .select("*, profiles(full_name, email, phone), addresses(full_name, street, city, phone, latitude, longitude), payments(payment_code, status, amount, expires_at)", { count: "exact" });
 
   if (search && search.trim()) {
     const cleanSearch = search.trim().toLowerCase();
@@ -102,7 +102,7 @@ export async function getOrderById(id: string) {
     .select(`
       *,
       profiles(full_name, email, phone),
-      addresses(full_name, phone, street, city),
+      addresses(full_name, phone, street, city, latitude, longitude),
       coupons(code, discount_percent),
       payments(payment_code, status, amount, expires_at),
       order_items(
@@ -124,7 +124,7 @@ export async function updateOrderStatus(id: string, status: string) {
     .from("orders")
     .update({ status })
     .eq("id", id)
-    .select("*, profiles(full_name, email, phone), addresses(full_name, street, city, phone)")
+    .select("*, profiles(full_name, email, phone), addresses(full_name, street, city, phone, latitude, longitude)")
     .single();
 
   if (!error) {
