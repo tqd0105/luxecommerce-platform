@@ -15,7 +15,7 @@
 | `orders` | Đơn hàng gốc của khách | `user_id`, `shipping_address_id`, `coupon_id` |
 | `order_items` | Chi tiết từng mặt hàng trong đơn | `order_id`, `product_id`, `variant_id` |
 | `addresses` | Sổ địa chỉ giao hàng của user | `user_id` -> `profiles(id)` |
-| `coupons` | Mã giảm giá | N/A |
+| `coupons` | Mã giảm giá (hỗ trợ `min_order_amount` đơn tối thiểu) | N/A |
 | `wishlists` | Sản phẩm lưu lại để xem sau | `user_id`, `product_id` |
 | `reviews` | Đánh giá sản phẩm từ user | `user_id`, `product_id` |
 
@@ -42,3 +42,14 @@ erDiagram
     ORDERS ||--|{ ORDER_ITEMS : contains
     PRODUCTS ||--o{ ORDER_ITEMS : provides
     COUPONS ||--o{ ORDERS : applies_to
+```
+
+## Database Triggers & Stored Procedures (Tự động hóa CSDL)
+
+1. **`trg_deduct_stock_on_order_item` (`BEFORE INSERT ON order_items`)**:
+   - Tự động kiểm tra số lượng tồn kho của biến thể hoặc sản phẩm cha với `FOR UPDATE` row-level lock.
+   - Nếu số lượng mua vượt quá số lượng tồn kho: ném lỗi `RAISE EXCEPTION` và hủy transaction ngay lập tức.
+   - Nếu hợp lệ: tự động trừ `stock_quantity` của `product_variants` và `products`.
+2. **`trg_restore_stock_on_order_cancelled` (`AFTER UPDATE OF status ON orders`)**:
+   - Khi trạng thái đơn hàng đổi thành `'cancelled'`, tự động hoàn trả số lượng các mặt hàng trong đơn vào `stock_quantity` của `product_variants` và `products`.
+   - Nếu đơn hàng được mở lại từ `'cancelled'`, tự động trừ lại số lượng tương ứng.

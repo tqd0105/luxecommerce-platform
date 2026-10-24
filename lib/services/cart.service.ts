@@ -17,7 +17,8 @@ export async function getCart() {
         price,
         discount_percent,
         image_url,
-        slug
+        slug,
+        stock_quantity
       ),
       product_variants (
         id,

@@ -372,7 +372,7 @@ export function DashboardView({ initialStats }: DashboardViewProps) {
           <div className="space-y-2 relative z-10">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
               <h2 className="text-lg sm:text-xl font-extrabold text-foreground flex items-center gap-2">
-                Đơn hàng mới nhất
+                Mới nhất
               </h2>
               <Link
                 href="/dashboard/orders"

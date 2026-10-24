@@ -6,6 +6,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import RoleGuard from "@/components/guards/role-guard";
 import { useAuth } from "@/components/providers/auth-provider";
 import { getOrders, updateOrderStatus, getOrderById, deleteOrderAdmin } from "@/lib/services/order.service";
+import { getGoogleMapsUrl } from "@/lib/services/shipping.service";
 import { supabase } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -806,14 +807,41 @@ function OrdersContent() {
                     </div>
                   </div>
                   <div className="rounded-2xl border border-border/50 bg-muted/20 p-4 sm:p-5 shadow-sm flex flex-col">
-                    <h3 className="font-bold mb-3 sm:mb-4 text-sm md:text-base flex items-center gap-2">
-                      <span className="w-1.5 h-4 bg-purple-500 rounded-full shrink-0"></span> Địa chỉ Giao hàng
-                    </h3>
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3 sm:mb-4">
+                      <h3 className="font-bold text-sm md:text-base flex items-center gap-2">
+                        <span className="w-1.5 h-4 bg-purple-500 rounded-full shrink-0"></span> Địa chỉ Giao hàng
+                      </h3>
+                      {selectedOrder.addresses && (
+                        <a
+                          href={getGoogleMapsUrl({
+                            lat: selectedOrder.addresses.latitude,
+                            lng: selectedOrder.addresses.longitude,
+                            address: `${selectedOrder.addresses.street}, ${selectedOrder.addresses.city}`,
+                            mode: "dir",
+                          })}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-full shadow-sm transition-all cursor-pointer"
+                          title="Mở Google Maps dẫn đường cho Shipper"
+                        >
+                          <IconTruckDelivery className="size-3.5" />
+                          <span>Chỉ đường Shipper (Google Maps)</span>
+                        </a>
+                      )}
+                    </div>
                     {selectedOrder.addresses ? (
                       <div className="space-y-2.5 sm:space-y-3 text-[13px] md:text-sm mt-auto">
                         <p className="flex justify-between gap-3"><span className="text-muted-foreground font-medium shrink-0">Người nhận:</span> <span className="font-semibold text-right break-words line-clamp-2">{selectedOrder.addresses.full_name || selectedOrder.profiles?.full_name}</span></p>
                         <p className="flex justify-between gap-3"><span className="text-muted-foreground font-medium shrink-0">SĐT:</span> <span className="font-semibold text-right">{selectedOrder.addresses.phone}</span></p>
                         <p className="flex justify-between gap-3"><span className="text-muted-foreground font-medium shrink-0">Địa chỉ:</span> <span className="font-semibold text-right break-words line-clamp-3" title={`${selectedOrder.addresses.street}, ${selectedOrder.addresses.city}`}>{selectedOrder.addresses.street}, {selectedOrder.addresses.city}</span></p>
+                        {selectedOrder.addresses.latitude && selectedOrder.addresses.longitude && (
+                          <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs text-muted-foreground">
+                            <span>Tọa độ GPS:</span>
+                            <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                              {Number(selectedOrder.addresses.latitude).toFixed(4)}, {Number(selectedOrder.addresses.longitude).toFixed(4)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <p className="text-[13px] md:text-sm text-muted-foreground font-medium mt-auto">Không có dữ liệu địa chỉ.</p>

@@ -68,6 +68,7 @@ function CouponsContent() {
     code: "",
     title: "",
     discount_percent: 0,
+    min_order_amount: 0,
     valid_until: "",
     usage_limit: 0,
     is_active: true,
@@ -97,6 +98,7 @@ function CouponsContent() {
       code: "",
       title: "",
       discount_percent: 10,
+      min_order_amount: 0,
       valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
       usage_limit: 0,
       is_active: true,
@@ -112,6 +114,7 @@ function CouponsContent() {
       code: coupon.code,
       title: coupon.title || "",
       discount_percent: coupon.discount_percent,
+      min_order_amount: coupon.min_order_amount || 0,
       valid_until: new Date(coupon.valid_until).toISOString().slice(0, 16),
       usage_limit: coupon.usage_limit || 0,
       is_active: coupon.is_active,
@@ -138,6 +141,7 @@ function CouponsContent() {
     const payload = {
       ...formData,
       code: formData.code.toUpperCase().trim(),
+      min_order_amount: formData.min_order_amount > 0 ? formData.min_order_amount : 0,
       usage_limit: formData.usage_limit > 0 ? formData.usage_limit : undefined,
       valid_until: new Date(formData.valid_until).toISOString(),
     };
@@ -210,6 +214,7 @@ function CouponsContent() {
               <TableHead className="font-bold text-foreground h-14">Mã code</TableHead>
               <TableHead className="font-bold text-foreground h-14">Mô tả ngắn</TableHead>
               <TableHead className="font-bold text-foreground h-14">Giảm giá</TableHead>
+              <TableHead className="font-bold text-foreground h-14">Đơn tối thiểu</TableHead>
               <TableHead className="font-bold text-foreground h-14">Đã dùng</TableHead>
               <TableHead className="font-bold text-foreground h-14">Hạn sử dụng</TableHead>
               <TableHead className="font-bold text-foreground h-14">Trạng thái</TableHead>
@@ -219,13 +224,13 @@ function CouponsContent() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={8} className="h-24 text-center">
                   <IconLoader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" />
                 </TableCell>
               </TableRow>
             ) : coupons.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-gray-500">
+                <TableCell colSpan={8} className="h-24 text-center text-gray-500">
                   Chưa có mã giảm giá nào.
                 </TableCell>
               </TableRow>
@@ -240,6 +245,15 @@ function CouponsContent() {
                     <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/5 text-primary ">
                       {coupon.discount_percent}%
                     </span>
+                  </TableCell>
+                  <TableCell className="font-medium text-sm">
+                    {coupon.min_order_amount && coupon.min_order_amount > 0 ? (
+                      <span className="font-semibold text-foreground">
+                        {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(coupon.min_order_amount)}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">Không giới hạn</span>
+                    )}
                   </TableCell>
                   <TableCell className="font-medium text-muted-foreground">
                     <span className="text-foreground">{coupon.used_count}</span> / {coupon.usage_limit || "∞"}
@@ -341,13 +355,16 @@ function CouponsContent() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Hạn sử dụng</Label>
+                <Label>Đơn hàng tối thiểu (VNĐ)</Label>
                 <Input
-                  type="datetime-local"
-                  value={formData.valid_until}
-                  onChange={(e) => setFormData({ ...formData, valid_until: e.target.value })}
-                  required
+                  type="number"
+                  min="0"
+                  step="1000"
+                  value={formData.min_order_amount}
+                  onChange={(e) => setFormData({ ...formData, min_order_amount: parseInt(e.target.value) || 0 })}
+                  placeholder="VD: 500000"
                 />
+                <p className="text-xs text-muted-foreground">Để 0 là áp dụng cho mọi giá trị đơn</p>
               </div>
               <div className="space-y-2">
                 <Label>Giới hạn lượt dùng</Label>
@@ -357,8 +374,18 @@ function CouponsContent() {
                   value={formData.usage_limit}
                   onChange={(e) => setFormData({ ...formData, usage_limit: parseInt(e.target.value) || 0 })}
                 />
-                <p className="text-xs text-gray-500">Để 0 là không giới hạn</p>
+                <p className="text-xs text-muted-foreground">Để 0 là không giới hạn</p>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Hạn sử dụng</Label>
+              <Input
+                type="datetime-local"
+                value={formData.valid_until}
+                onChange={(e) => setFormData({ ...formData, valid_until: e.target.value })}
+                required
+              />
             </div>
 
             <div className="flex items-center gap-2 pt-2">

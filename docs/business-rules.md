@@ -17,11 +17,13 @@ Tổng hợp các quy tắc nghiệp vụ (Business Logic) hiện tại được
 - Một sản phẩm trong `cart_items` bắt buộc phải tham chiếu đến 1 `product_id` hợp lệ. Nếu sản phẩm bị xóa, `ON DELETE CASCADE` sẽ tự động xóa sản phẩm khỏi giỏ hàng.
 - Khi người dùng đặt hàng, hệ thống bắt buộc tạo một bản ghi `orders` trạng thái `pending`, sau đó sao chép giá trị (price) hiện tại của sản phẩm vào `order_items` để đảm bảo không bị ảnh hưởng nếu admin đổi giá sản phẩm sau này.
 
-## Đơn hàng (Orders)
+## Đơn hàng (Orders) & Quản lý Kho hàng (Inventory)
 - Trạng thái mặc định khi tạo là `pending`.
-- Admin mới có quyền cập nhật trạng thái đơn.
+- Admin và Staff có quyền cập nhật trạng thái đơn hàng.
 - User có thể HỦY đơn hàng của chính mình CHỈ KHI đơn đang ở trạng thái `pending`.
 - Giỏ hàng (`cart_items`) sẽ bị xóa sạch ngay sau khi thanh toán thành công.
+- **Trừ tồn kho khi Đặt hàng (Deduction):** Khi các mặt hàng trong đơn được thêm vào `order_items`, Database Trigger (`handle_order_item_stock_deduction`) tự động kiểm tra số lượng tồn kho (`stock_quantity`) của sản phẩm hoặc biến thể tương ứng (`product_variants`). Nếu số lượng yêu cầu vượt quá tồn kho hiện có, đơn hàng sẽ bị chặn lại (ROLLBACK) và báo lỗi hết hàng. Nếu đủ hàng, `stock_quantity` sẽ tự động bị trừ đi tương ứng.
+- **Hoàn trả tồn kho khi Hủy đơn (Restoration):** Bất kể đơn hàng bị hủy từ phía Người dùng, Quản trị viên (Admin/Staff), hoặc hệ thống thanh toán tự động, khi trạng thái đơn hàng chuyển sang `cancelled`, Database Trigger (`handle_order_cancellation_stock_restore`) sẽ tự động hoàn trả lại đúng số lượng các mặt hàng trong đơn vào kho hàng. Nếu đơn hàng được phục hồi trạng thái từ `cancelled`, kho hàng sẽ tự động được trừ lại.
 
 ## Mã giảm giá (Coupons)
 - Chỉ áp dụng được khi `is_active = true` và `valid_from` <= hiện tại <= `valid_until`.
@@ -64,3 +66,14 @@ Tổng hợp các quy tắc nghiệp vụ (Business Logic) hiện tại được
   1. Nếu nội dung chuyển khoản chứa chính xác mã `LX-XXXXXX` và số tiền `amount >= expected_amount` của đơn đang `PENDING` chưa hết hạn, thanh toán chuyển sang trạng thái `MATCHED`, đơn hàng chuyển sang `PROCESSING` và tự động gửi email xác nhận.
   2. Nếu tìm thấy mã đơn nhưng số tiền `amount < expected_amount`, giao dịch được ghi nhận ở trạng thái `UNMATCHED` và yêu cầu admin kiểm tra thủ công.
 - **Hủy thanh toán:** Người dùng có quyền bấm "Hủy thanh toán" tại màn hình VietQR. Khi đó đơn hàng sẽ được hủy (hoặc đánh dấu hủy) và toàn bộ sản phẩm sẽ được khôi phục về giỏ hàng (`cart_items`) để người dùng có thể điều chỉnh lại.
+
+## Quy tắc Tính phí vận chuyển & Chống Bypass Vị trí (Shipping & Anti-Bypass)
+- **Xác thực vị trí thủ công (Manual Verification Trigger):** Nhằm tối ưu trải nghiệm và tránh gọi API định vị liên tục khi đang gõ, khách hàng nhập Tỉnh/Thành phố và Địa chỉ cụ thể rồi nhấn nút "Xác nhận & Tìm vị trí" (hoặc nhấn phím Enter).
+- **Hủy xác thực khi sửa địa chỉ:** Bất kỳ thay đổi nào trên trường Tỉnh/Thành phố hoặc Địa chỉ cụ thể sẽ lập tức thu hồi trạng thái xác thực và xóa tọa độ cũ để buộc khách xác thực lại vị trí mới, tránh gian lận phí ship.
+- **Khóa nút Đặt hàng (Strict Place Order Guard):** Nút "Đặt hàng ngay" bị vô hiệu hóa hoàn toàn khi: (1) Địa chỉ chưa được xác thực tọa độ GPS chuẩn; (2) Giỏ hàng có sản phẩm vượt quá tồn kho; (3) Thông tin người nhận chưa hợp lệ.
+- **Chống Bypass từ Server (Server-Side Recalculation):** Trong `checkout.service.ts`, hệ thống không tin tưởng `shippingFee` thô gửi từ client. Backend bắt buộc kiểm tra tọa độ GPS trong phạm vi lãnh thổ Việt Nam và tự động tính toán lại `shippingFee` cùng `distance_km` trước khi lưu vào bảng `orders`.
+- **Ghim vị trí trực quan trên Bản đồ tương tác (Interactive Map Pinning):** Khi địa chỉ gõ tay không tìm thấy (ví dụ: số nhà trong hẻm/ngách, tên đường mới mở, hoặc địa chỉ ảo), người dùng có thể mở Bản đồ tương tác ("Chọn trên bản đồ") sử dụng Leaflet & OpenStreetMap. Người dùng có thể kéo thả ghim hoặc bấm vào vị trí chính xác của nhà mình. Hệ thống tự động kích hoạt Server Reverse Geocoding (`/api/shipping/reverse`) để đọc tên đường/quận/huyện và tính lại khoảng cách & cước phí vận chuyển chính xác 100%.
+- **Đồng bộ Sổ địa chỉ (Address Book Geocoding):** Tại `/account/addresses`, người dùng cũng có thể chọn và ghim vị trí trên bản đồ tương tác khi thêm/sửa địa chỉ. Tọa độ GPS (`latitude`, `longitude`) được lưu trực tiếp vào cơ sở dữ liệu để khi vào thanh toán, hệ thống nhận diện tức thì mà không cần tra cứu lại.
+- **Goong Maps Engine & Từ điển sáp nhập hành chính Việt Nam (Dual-Engine Geocoding):** 
+  - Hệ thống tích hợp Goong Maps làm engine ưu tiên số một cho Geocoding, Reverse Geocoding và Places Autocomplete khi `GOONG_API_KEY` được cung cấp. Goong chuyên biệt cho thị trường Việt Nam, cập nhật tức thì dữ liệu phân cấp hành chính mới (như TP. Thủ Đức, các phường/xã sáp nhập) và nhận diện chính xác từng số nhà, ngõ ngách mà không yêu cầu thẻ tín dụng quốc tế.
+  - Khi chưa cấu hình Goong Key, hệ thống tự động fallback về OpenStreetMap / Nominatim kết hợp cùng Bảng từ điển ánh xạ sáp nhập (`VIETNAM_MERGER_ALIASES`) nhằm loại bỏ tình trạng từ chối nhầm các địa chỉ hợp lệ ở các địa phương vừa sáp nhập.

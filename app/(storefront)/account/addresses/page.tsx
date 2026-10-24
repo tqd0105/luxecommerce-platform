@@ -19,6 +19,10 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import Image from "next/image";
+import { MapPin, CheckCircle2, ExternalLink, Building2, Info } from "lucide-react";
+import { AddressMapPickerModal } from "@/components/storefront/address-map-picker-modal";
+import { BranchSelectorModal } from "@/components/storefront/branch-selector-modal";
+import { getGoogleMapsUrl, forwardGeocode, forwardGeocodeDetailed, getCoordinatesFromCity, BranchOption } from "@/lib/services/shipping.service";
 
 export default function AddressesPage() {
   const { user } = useAuth();
@@ -28,13 +32,31 @@ export default function AddressesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteModalId, setDeleteModalId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [isMapOpen, setIsMapOpen] = useState(false);
   
-  const [formData, setFormData] = useState({
+  // State phục vụ việc chọn cơ sở đối với các trường học / địa điểm nhiều cơ sở
+  const [availableBranches, setAvailableBranches] = useState<BranchOption[]>([]);
+  const [multiBranchPoiName, setMultiBranchPoiName] = useState("");
+  const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
+  
+  const [formData, setFormData] = useState<{
+    id: string;
+    full_name: string;
+    phone: string;
+    street: string;
+    city: string;
+    latitude: number | null;
+    longitude: number | null;
+    is_default: boolean;
+    type: string;
+  }>({
     id: "",
     full_name: "",
     phone: "",
     street: "",
     city: "",
+    latitude: null,
+    longitude: null,
     is_default: false,
     type: "home"
   });
@@ -62,9 +84,55 @@ export default function AddressesPage() {
       phone: "",
       street: "",
       city: "",
+      latitude: null,
+      longitude: null,
       is_default: false,
       type: "home"
     });
+    setAvailableBranches([]);
+    setMultiBranchPoiName("");
+  };
+
+  const handleCheckAddress = async () => {
+    if (!formData.street?.trim()) {
+      toast.error("Vui lòng nhập địa chỉ cụ thể");
+      return;
+    }
+    const res = await forwardGeocodeDetailed(formData.street, formData.city);
+    if (res.hasMultipleBranches && res.branches && res.branches.length > 0) {
+      setAvailableBranches(res.branches);
+      setMultiBranchPoiName(res.matchedName || "Địa điểm có nhiều cơ sở");
+      setIsBranchModalOpen(true);
+      return;
+    }
+    if (res.coords) {
+      setFormData((prev) => ({
+        ...prev,
+        latitude: res.coords!.lat,
+        longitude: res.coords!.lng,
+      }));
+      toast.success("Đã tìm thấy vị trí GPS chính xác!");
+    } else {
+      toast.error("Không tìm thấy địa chỉ tự động, bạn có thể bấm 'Chọn trên bản đồ'");
+    }
+  };
+
+  const handleSelectBranch = (branch: BranchOption) => {
+    const streetWithBranch =
+      branch.branchName && !branch.street.toLowerCase().includes(branch.branchName.toLowerCase())
+        ? `${branch.branchName} - ${branch.street}`
+        : branch.street;
+    const cityToSet = branch.city || formData.city || "TP.HCM";
+
+    setFormData((prev) => ({
+      ...prev,
+      street: streetWithBranch,
+      city: cityToSet,
+      latitude: branch.coords.lat,
+      longitude: branch.coords.lng,
+    }));
+    setIsBranchModalOpen(false);
+    toast.success(`Đã xác nhận vị trí: ${branch.branchName}`);
   };
 
   const handleOpenAdd = () => {
@@ -79,9 +147,13 @@ export default function AddressesPage() {
       phone: addr.phone || "",
       street: addr.street || "",
       city: addr.city || "",
+      latitude: addr.latitude || null,
+      longitude: addr.longitude || null,
       is_default: addr.is_default || false,
       type: addr.type || "home"
     });
+    setAvailableBranches([]);
+    setMultiBranchPoiName("");
     setIsDialogOpen(true);
   };
 
@@ -112,12 +184,40 @@ export default function AddressesPage() {
 
     setIsSubmitting(true);
     
+    const finalData = { ...formData };
+    if (!finalData.latitude || !finalData.longitude) {
+      try {
+        const geoRes = await forwardGeocodeDetailed(finalData.street, finalData.city);
+        if (geoRes.hasMultipleBranches && geoRes.branches && geoRes.branches.length > 0) {
+          setAvailableBranches(geoRes.branches);
+          setMultiBranchPoiName(geoRes.matchedName || "Địa điểm có nhiều cơ sở");
+          setIsBranchModalOpen(true);
+          setIsSubmitting(false);
+          toast.info("Địa điểm này có nhiều cơ sở, vui lòng chọn cơ sở của bạn.");
+          return;
+        }
+        if (geoRes.coords) {
+          finalData.latitude = geoRes.coords.lat;
+          finalData.longitude = geoRes.coords.lng;
+        } else {
+          // Fallback theo Tỉnh / Thành phố nếu không tìm thấy tên đường cụ thể trên bản đồ
+          const cityFallback = getCoordinatesFromCity(finalData.city);
+          if (cityFallback) {
+            finalData.latitude = cityFallback.lat;
+            finalData.longitude = cityFallback.lng;
+          }
+        }
+      } catch (err) {
+        console.warn("Auto geocode on save warning:", err);
+      }
+    }
+
     let error;
-    if (formData.id) {
-      const res = await updateAddress(formData.id, formData);
+    if (finalData.id) {
+      const res = await updateAddress(finalData.id, finalData);
       error = res.error;
     } else {
-      const res = await addAddress(formData);
+      const res = await addAddress(finalData);
       error = res.error;
     }
 
@@ -171,8 +271,67 @@ export default function AddressesPage() {
                 <Input id="city" placeholder="Hà Nội" value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} required className="h-11 bg-background/50 border-border/60 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary rounded-xl transition-all" />
               </div>
               <div className="space-y-2.5">
-                <Label htmlFor="street" className="text-[13px] font-semibold text-foreground/80">Địa chỉ cụ thể</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="street" className="text-[13px] font-semibold text-foreground/80">Địa chỉ cụ thể</Label>
+                  <div className="flex items-center gap-3">
+                    {availableBranches.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setIsBranchModalOpen(true)}
+                        className="text-xs text-primary hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Building2 className="w-3.5 h-3.5" />
+                        <span>Đổi cơ sở</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsMapOpen(true)}
+                      className="text-xs text-primary hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                    >
+                      <MapPin className="w-3.5 h-3.5" />
+                      {formData.latitude && formData.longitude ? "Đã ghim vị trí (Sửa)" : "Chọn trên bản đồ"}
+                    </button>
+                  </div>
+                </div>
                 <Input id="street" placeholder="Số nhà, ngõ, đường..." value={formData.street} onChange={e => setFormData({...formData, street: e.target.value})} required className="h-11 bg-background/50 border-border/60 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary rounded-xl transition-all" />
+                {formData.latitude && formData.longitude ? (
+                  <div className="flex items-center justify-between text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-1">
+                    <span className="flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Đã gắn tọa độ GPS chuẩn ({formData.latitude.toFixed(4)}, {formData.longitude.toFixed(4)})
+                    </span>
+                    {availableBranches.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setIsBranchModalOpen(true)}
+                        className="text-primary hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Building2 className="w-3 h-3" />
+                        Đổi cơ sở ({availableBranches.length})
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between mt-1 text-[11px]">
+                    <span className="text-muted-foreground">Nhập tên trường, cơ sở hoặc địa chỉ</span>
+                    <button
+                      type="button"
+                      onClick={handleCheckAddress}
+                      className="text-primary hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                    >
+                      <Building2 className="w-3 h-3" />
+                      Kiểm tra cơ sở
+                    </button>
+                  </div>
+                )}
+                {/* Thông điệp cam kết giao hàng tận nơi & Google Maps */}
+                <div className="flex items-start gap-2 p-2.5 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-800 dark:text-sky-300 text-[11px] leading-relaxed mt-2">
+                  <Info className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Cam kết giao hàng chuẩn xác:</strong> Tọa độ bản đồ dùng để tính cước phí. Khi giao hàng, shipper sẽ điều hướng qua <strong>Google Maps</strong> theo đúng số nhà và địa chỉ chi tiết bạn đã nhập.
+                  </span>
+                </div>
               </div>
               <div className="space-y-2.5">
                 <Label className="text-[13px] font-semibold text-foreground/80">Loại địa chỉ (Giao giờ hành chính hay nhà riêng?)</Label>
@@ -226,9 +385,9 @@ export default function AddressesPage() {
               
               {addr.is_default && (
                 <div className="absolute top-4 right-4">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold tracking-wide uppercase rounded-full bg-primary text-primary-foreground shadow-sm">
+                  <span className="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1 text-[11px] font-bold tracking-wide uppercase rounded-full bg-primary text-primary-foreground shadow-sm">
                     <IconMapPinFilled className="size-3" />
-                    Mặc định
+                    <span className="hidden sm:inline">Mặc định</span>
                   </span>
                 </div>
               )}
@@ -250,6 +409,24 @@ export default function AddressesPage() {
                   <div className="space-y-1 font-bold">
                     <p>{addr.street} - {addr.city}</p>
                   </div>
+                </div>
+
+                <div className="mt-2.5 flex items-center gap-2">
+                  <a
+                    href={getGoogleMapsUrl({
+                      lat: addr.latitude,
+                      lng: addr.longitude,
+                      address: `${addr.street}, ${addr.city}`,
+                      mode: "search",
+                    })}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300 font-semibold hover:underline"
+                    title="Mở Google Maps để xem vị trí trên bản đồ"
+                  >
+                    <ExternalLink className="size-3.5" />
+                    <span>Xem trên Google Maps</span>
+                  </a>
                 </div>
               </div>
 
@@ -286,6 +463,38 @@ export default function AddressesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Modal Chọn vị trí trên bản đồ */}
+      <AddressMapPickerModal
+        open={isMapOpen}
+        onOpenChange={setIsMapOpen}
+        initialCoords={
+          formData.latitude && formData.longitude
+            ? { lat: formData.latitude, lng: formData.longitude }
+            : null
+        }
+        initialStreet={formData.street}
+        initialCity={formData.city}
+        onConfirm={(result) => {
+          setFormData((prev) => ({
+            ...prev,
+            street: result.street || prev.street,
+            city: result.city || prev.city,
+            latitude: result.lat,
+            longitude: result.lng,
+          }));
+        }}
+      />
+
+      {/* Modal Chọn cơ sở đối với các trường / địa điểm nhiều chi nhánh */}
+      <BranchSelectorModal
+        isOpen={isBranchModalOpen}
+        onClose={() => setIsBranchModalOpen(false)}
+        poiName={multiBranchPoiName}
+        cityName={formData.city || "TP.HCM"}
+        branches={availableBranches}
+        onSelectBranch={handleSelectBranch}
+        onOpenMapPicker={() => setIsMapOpen(true)}
+      />
     </div>
   );
 }
