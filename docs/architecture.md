@@ -30,7 +30,18 @@ Xây dựng một hệ thống E-commerce tích hợp hoàn chỉnh bao gồm: m
 4. **Shopping:** Giỏ hàng (Cart), Đơn hàng (Orders), Chi tiết đơn hàng (Order Items).
 5. **Customer:** Hồ sơ (Profiles), Địa chỉ nhận hàng (Addresses), Yêu thích (Wishlists), Đánh giá (Reviews).
 6. **AI Assistant:** Trợ lý ảo tư vấn bán hàng Luxe Assistant (Google Gemini Flash API, Supabase Inventory Grounding, Chat Widget toàn hệ thống).
-
+7. **Order Tracking (Theo dõi đơn hàng thời gian thực):**
+   - Quản lý lộ trình theo các chặng/mốc vận chuyển (Milestones / Transit Hubs).
+   - Tích hợp Supabase Realtime WebSocket đồng bộ trạng thái tức thì giữa Quản trị viên và Khách hàng.
+   - Bản đồ tương tác Leaflet (SSR-safe) mô phỏng vị trí phương tiện, bán kính radar pulsing, các bưu cục trung chuyển và cung đường kết nối (Polylines).
+   - Cung cấp 2 kênh theo dõi: Modal trực tiếp trong Quản lý đơn hàng cá nhân (`/account/orders`) và Trang tra cứu công khai độc lập (`/tracking/[orderId]`).
+8. **Loyalty Coins & VIP Membership (Tích xu & Hạng thành viên):**
+   - Cơ chế điểm thăng hạng trọn đời (`lifetime_coins`) độc lập với số dư chi tiêu (`coins_balance`), đảm bảo không tụt hạng khi tiêu xu.
+   - 4 hạng thành viên phân cấp: Đồng (1%), Bạc (1.5%), Vàng (2% + giảm 50% ship), Kim Cương (3% + Freeship 100%).
+   - Tự động hóa hoàn toàn qua PostgreSQL Triggers khi đơn hàng chuyển sang `delivered` và tự động hoàn trả khi hủy đơn.
+   - Điểm danh hằng ngày nhận 200 - 500 xu tùy hạng, kiểm soát qua RPC `claim_daily_checkin()`.
+   - Tích hợp thanh toán: dùng xu cấn trừ trực tiếp tối đa 50% tiền hàng, áp dụng giảm cước ship theo hạng.
+   - Thẻ VIP Digital tương tác (`MembershipCard`), portal quản lý ví xu (`/account/coins`), lịch sử biến động xu (`coin_transactions`).
 
 ## Dòng chảy khách hàng (Customer flow)
 1. **Truy cập & Duyệt:** Khách xem trang chủ (banner, sản phẩm nổi bật, sale), tìm kiếm hoặc lọc theo danh mục.

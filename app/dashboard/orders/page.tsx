@@ -7,6 +7,7 @@ import RoleGuard from "@/components/guards/role-guard";
 import { useAuth } from "@/components/providers/auth-provider";
 import { getOrders, updateOrderStatus, getOrderById, deleteOrderAdmin } from "@/lib/services/order.service";
 import { getGoogleMapsUrl } from "@/lib/services/shipping.service";
+import { OrderTrackingAdminTab } from "@/components/dashboard/order-tracking-admin-tab";
 import { supabase } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -99,6 +100,7 @@ function OrdersContent() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [detailTab, setDetailTab] = useState<string>("order-info");
 
   // Delete State
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -303,7 +305,7 @@ function OrdersContent() {
     }
   };
 
-  const handleViewDetails = async (id: string) => {
+  const handleViewDetails = async (id: string, initialTab: string = "order-info") => {
     try {
       const unread = JSON.parse(localStorage.getItem("admin_unread_order_ids") || "[]");
       const next = unread.filter((item: string) => item !== id);
@@ -311,12 +313,20 @@ function OrdersContent() {
     } catch { }
     setLiveOrderIds(getUnreadFromStorage());
     setDetailOpen(true);
+    setDetailTab(initialTab);
     setLoadingDetail(true);
     const { data, error } = await getOrderById(id);
     if (!error && data) {
       setSelectedOrder(data);
     }
     setLoadingDetail(false);
+  };
+
+  const refreshOrderDetail = async (id: string) => {
+    const { data, error } = await getOrderById(id);
+    if (!error && data) {
+      setSelectedOrder(data);
+    }
   };
 
   const formatCurrency = (val: number) => {
@@ -795,7 +805,20 @@ function OrdersContent() {
                 <IconLoader2 className="h-10 w-10 animate-spin text-emerald-500/50" />
               </div>
             ) : selectedOrder ? (
-              <div className="flex flex-col gap-6 min-w-0 w-full">
+              <Tabs value={detailTab} onValueChange={setDetailTab} className="w-full">
+                <TabsList className="grid grid-cols-2 max-w-md mb-6 rounded-2xl bg-muted/40 p-1 border border-border/50">
+                  <TabsTrigger value="order-info" className="rounded-xl text-xs sm:text-sm font-bold gap-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                    <IconReceipt className="size-4 text-emerald-500" />
+                    <span>Thông tin Đơn hàng</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="order-tracking" className="rounded-xl text-xs sm:text-sm font-bold gap-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                    <IconTruckDelivery className="size-4 text-blue-500" />
+                    <span>Hành trình Vận chuyển</span>
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="order-info" className="mt-0">
+                  <div className="flex flex-col gap-6 min-w-0 w-full">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-stretch">
                   <div className="rounded-2xl border border-border/50 bg-muted/20 p-4 sm:p-5 shadow-sm flex flex-col">
                     <h3 className="font-bold mb-3 sm:mb-4 text-sm md:text-base flex items-center gap-2">
@@ -954,21 +977,47 @@ function OrdersContent() {
                   </div>
 
                   <div className="mt-6 flex justify-end">
-                    <div className="w-full sm:w-72 space-y-3 bg-muted/20 p-5 rounded-2xl border border-border/50 shadow-sm text-sm">
+                    <div className="w-full sm:w-80 space-y-2.5 bg-muted/20 p-5 rounded-2xl border border-border/50 shadow-sm text-sm">
                       {selectedOrder.coupons && (
-                        <div className="flex justify-between text-emerald-600 font-semibold">
-                          <span>Giảm giá ({selectedOrder.coupons.code}):</span>
+                        <div className="flex justify-between text-emerald-600 font-semibold text-xs">
+                          <span>Mã giảm giá ({selectedOrder.coupons.code}):</span>
                           <span>-{selectedOrder.coupons.discount_percent}%</span>
                         </div>
                       )}
+                      {Number(selectedOrder.coins_used || 0) > 0 && (
+                        <div className="flex justify-between text-amber-700 dark:text-amber-400 font-semibold text-xs">
+                          <span>🪙 Khấu trừ Xu ({Number(selectedOrder.coins_used).toLocaleString("vi-VN")} xu):</span>
+                          <span>-{formatCurrency(Number(selectedOrder.coins_discount || selectedOrder.coins_used || 0))}</span>
+                        </div>
+                      )}
+                      {Number(selectedOrder.coins_earned || 0) > 0 && (
+                        <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-semibold text-xs bg-emerald-500/10 px-2.5 py-1.5 rounded-xl border border-emerald-500/20">
+                          <span>✨ Xu thưởng khi giao xong:</span>
+                          <span className="font-bold">+{Number(selectedOrder.coins_earned).toLocaleString("vi-VN")} Xu</span>
+                        </div>
+                      )}
                       <div className="flex justify-between border-t border-border/50 pt-3 font-extrabold text-lg md:text-xl items-center">
-                        <span>Tổng:</span>
+                        <span>Tổng thanh toán:</span>
                         <span className="text-primary">{formatCurrency(selectedOrder.total_amount)}</span>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
+                </TabsContent>
+
+                <TabsContent value="order-tracking" className="mt-0">
+                  <OrderTrackingAdminTab
+                    order={selectedOrder}
+                    onOrderUpdated={() => {
+                      if (selectedOrder?.id) {
+                        refreshOrderDetail(selectedOrder.id);
+                      }
+                      loadOrders();
+                    }}
+                  />
+                </TabsContent>
+              </Tabs>
             ) : null}
           </div>
         </DialogContent>

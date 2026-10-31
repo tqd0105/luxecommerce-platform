@@ -16,6 +16,7 @@ export interface CheckoutData {
   distanceKm?: number;
   latitude?: number;
   longitude?: number;
+  coinsToUse?: number;
 }
 
 export async function placeOrder(checkoutData: CheckoutData) {
@@ -40,6 +41,7 @@ export async function placeOrder(checkoutData: CheckoutData) {
     const finalPrice = discountedBase + modifier;
     totalAmount += finalPrice * item.quantity;
   }
+  const productSubtotal = totalAmount;
 
   // 1.5 Handle Coupon
   if (checkoutData.couponId) {
@@ -85,11 +87,38 @@ export async function placeOrder(checkoutData: CheckoutData) {
   // Luôn tự động tính toán lại chi phí vận chuyển chuẩn từ server dựa trên giá trị đơn và tọa độ GPS
   // Tuyệt đối không tin tưởng shippingFee thô gửi từ client để ngăn chặn bypass / giả mạo giá tiền
   const verifiedShipping = calculateShippingFee(totalAmount, { lat, lng });
-  const verifiedShippingFee = verifiedShipping.shippingFee;
+  let verifiedShippingFee = verifiedShipping.shippingFee;
   const verifiedDistanceKm = verifiedShipping.distanceKm;
+
+  // Lấy thông tin Hạng thành viên & Xu của khách hàng
+  const { data: userProfile } = await supabase
+    .from("profiles")
+    .select("membership_tier, coins_balance")
+    .eq("id", userId)
+    .single();
+
+  // Áp dụng đặc quyền Hạng thành viên (Diamond: Freeship 100%, Gold: Giảm 50% ship)
+  if (userProfile?.membership_tier === "diamond") {
+    verifiedShippingFee = 0;
+  } else if (userProfile?.membership_tier === "gold") {
+    verifiedShippingFee = Math.round(verifiedShippingFee * 0.5);
+  }
 
   // Cộng phí vận chuyển đã kiểm chứng vào tổng đơn hàng
   totalAmount += verifiedShippingFee;
+
+  // Xử lý tiêu Xu LuxeCommerce (1 Xu = 1 VNĐ, tối đa 50% tiền hàng)
+  let validCoinsUsed = 0;
+  let coinsDiscount = 0;
+
+  if (checkoutData.coinsToUse && checkoutData.coinsToUse > 0 && userProfile && userProfile.coins_balance > 0) {
+    const maxAllowedByOrder = Math.floor(productSubtotal * 0.5);
+    validCoinsUsed = Math.max(0, Math.min(checkoutData.coinsToUse, userProfile.coins_balance, maxAllowedByOrder));
+    if (validCoinsUsed > 0) {
+      coinsDiscount = validCoinsUsed;
+      totalAmount = Math.max(0, totalAmount - coinsDiscount);
+    }
+  }
 
   // 2. Create or find Address
   let addressId = checkoutData.selectedAddressId;
@@ -152,11 +181,31 @@ export async function placeOrder(checkoutData: CheckoutData) {
       shipping_address_id: addressId,
       payment_method: checkoutData.paymentMethod,
       coupon_id: checkoutData.couponId || null,
+      coins_used: validCoinsUsed,
+      coins_discount: coinsDiscount,
     })
     .select()
     .single();
 
   if (orderError) return { data: null, error: orderError };
+
+  // Trừ số xu trong tài khoản và ghi nhận lịch sử biến động xu
+  if (validCoinsUsed > 0 && userProfile) {
+    const newBalance = userProfile.coins_balance - validCoinsUsed;
+    await supabase
+      .from("profiles")
+      .update({ coins_balance: newBalance })
+      .eq("id", userId);
+
+    await supabase.from("coin_transactions").insert({
+      user_id: userId,
+      order_id: order.id,
+      amount: -validCoinsUsed,
+      balance_after: newBalance,
+      type: "order_spent",
+      description: `Dùng ${validCoinsUsed.toLocaleString("vi-VN")} Xu thanh toán đơn hàng #${order.id.slice(0, 8).toUpperCase()}`,
+    });
+  }
 
   // 4. Move Cart Items to Order Items
   const orderItemsPayload = (cartItems as any[]).map(item => {

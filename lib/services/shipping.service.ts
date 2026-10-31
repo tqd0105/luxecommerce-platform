@@ -27,7 +27,7 @@ export interface ShippingCalculationResult {
 export const WAREHOUSE_LOCATION = {
   lat: 10.7769,
   lng: 106.7009,
-  name: "Kho Tổng LuxeCommerce Flagship",
+  name: "Kho Tổng LuxeCommerce ",
   address: "Quận 1, TP. Hồ Chí Minh",
 };
 

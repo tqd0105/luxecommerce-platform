@@ -99,7 +99,7 @@ export default function AddressMapView({
     }).addTo(map);
     warehouseMarker.bindPopup(
       `<div style="font-family: sans-serif; font-size: 12px; padding: 2px;">
-        <strong style="color: #d97706; display: block; margin-bottom: 2px;">${WAREHOUSE_LOCATION.name}</strong>
+        <strong style="color: #ff0000ff; display: block; margin-bottom: 2px;">${WAREHOUSE_LOCATION.name}</strong>
         <span style="color: #64748b;">${WAREHOUSE_LOCATION.address}</span>
       </div>`
     );
@@ -118,7 +118,7 @@ export default function AddressMapView({
         [coords.lat, coords.lng],
       ],
       {
-        color: "#10b981",
+        color: "#00ffaaff",
         weight: 3,
         dashArray: "6, 8",
         opacity: 0.85,

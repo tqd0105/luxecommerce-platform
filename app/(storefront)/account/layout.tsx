@@ -12,7 +12,9 @@ import {
   Heart, 
   Settings, 
   LogOut,
-  ShoppingCart
+  Sparkles,
+  CircleDollarSign,
+  ShoppingCart,
 } from "lucide-react";
 
 export default function AccountLayout({ children }: { children: React.ReactNode }) {
@@ -34,6 +36,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
 
   const menuItems = [
     { name: "Tổng quan", href: "/account", icon: User },
+    { name: "Ví Xu & Thẻ VIP", href: "/account/coins", icon: CircleDollarSign },
     { name: "Đơn hàng", href: "/account/orders", icon: ShoppingCart },
     { name: "Sổ địa chỉ", href: "/account/addresses", icon: MapPin },
     { name: "Yêu thích", href: "/account/wishlist", icon: Heart },
@@ -56,8 +59,16 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
                 )}
               </div>
               <div className="flex-1 overflow-hidden">
-                <h2 className="text-lg font-bold truncate">Tài khoản</h2>
-                <p className="text-[13px] text-muted-foreground truncate">{user.email}</p>
+                <h2 className="text-base font-bold truncate">{profile?.full_name || "Tài khoản"}</h2>
+                <Link
+                  href="/account/coins"
+                  className="inline-flex items-center gap-1.5 mt-0.5 text-xs text-amber-700 dark:text-amber-400 font-semibold hover:underline"
+                >
+                  <span>🪙 {Number(profile?.coins_balance || 0).toLocaleString("vi-VN")} Xu</span>
+                  <span className="text-[10px] bg-amber-500/15 px-1.5 py-0.5 rounded-full uppercase font-bold text-amber-800 dark:text-amber-300">
+                    {profile?.membership_tier || "bronze"}
+                  </span>
+                </Link>
               </div>
             </div>
             
