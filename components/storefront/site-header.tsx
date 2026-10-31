@@ -32,11 +32,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/lib/supabase/client";
 import { getProduct } from "@/lib/services/product.service";
 import { getGuestCartItems } from "@/lib/services/cart.service";
+import { TIER_CONFIGS, MembershipTier } from "@/lib/services/loyalty.service";
 
 
 export function SiteHeader() {
   const { openModal } = useAuthModal();
   const { user, profile, role, logout } = useAuth();
+  const userTier: MembershipTier = (profile?.membership_tier as MembershipTier) || "bronze";
+  const tierConfig = TIER_CONFIGS[userTier] || TIER_CONFIGS.bronze;
   const [cartCount, setCartCount] = useState(0);
   const [isBumping, setIsBumping] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -363,6 +366,18 @@ export function SiteHeader() {
                         Tài khoản của tôi
                       </p>
                       <Link
+                        href="/account/coins"
+                        onClick={(e) => handleMobileNav("/account/coins", e)}
+                        className="flex items-center justify-between px-3.5 py-3 rounded-[14px] font-bold text-[14.5px] bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 shadow-xs transition-all duration-200"
+                      >
+                        <span className="flex items-center gap-3">
+                          <Sparkles className="w-5 h-5 text-amber-500" /> Ví Xu & Thẻ VIP
+                        </span>
+                        <span className="text-xs bg-amber-500/20 px-2 py-0.5 rounded-full font-extrabold text-amber-800 dark:text-amber-300">
+                          {Number(profile?.coins_balance || 0).toLocaleString("vi-VN")} Xu
+                        </span>
+                      </Link>
+                      <Link
                         href="/cart"
                         onClick={(e) => handleMobileNav("/cart", e)}
                         className="flex items-center justify-between px-3.5 py-3 rounded-[14px] font-bold text-[14.5px] text-foreground/70 hover:bg-muted/50 hover:text-foreground transition-all duration-200"
@@ -629,72 +644,95 @@ export function SiteHeader() {
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64 p-2.5 rounded-[24px] shadow-2xl border border-border/50 bg-card/80 backdrop-blur-xl z-[100]">
-                <DropdownMenuLabel className="font-normal p-3 bg-gradient-to-br from-primary/5 to-transparent rounded-[16px] mb-2 flex items-center gap-3 border border-primary/10 shadow-inner">
-                  <Avatar className="h-11 w-11 shrink-0 ring-2 ring-primary/20 shadow-sm">
+              <DropdownMenuContent align="end" className="w-72 p-2.5 rounded-[24px] shadow-2xl border border-border/50 bg-card/80 backdrop-blur-xl z-[100]">
+                <DropdownMenuLabel className="font-normal p-3 bg-gradient-to-br from-primary/5 to-transparent rounded-[16px] mb-1.5 flex items-center gap-3 border border-primary/10 shadow-inner">
+                  <Avatar className="h-10 w-10 shrink-0 ring-2 ring-primary/20 shadow-sm">
                     <AvatarImage src={profile?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture} className="object-cover" />
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-primary/50 text-primary-foreground font-bold">
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-primary/50 text-primary-foreground font-bold text-xs">
                       {user.email?.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex flex-col space-y-0.5 overflow-hidden flex-1 min-w-0">
+                  <div className="flex flex-col min-w-0 flex-1 justify-center">
                     <div className="flex items-center justify-between gap-1.5">
-                      <p className="text-[14.5px] font-bold truncate text-foreground">
+                      <p className="text-[14px] font-bold truncate text-foreground">
                         {profile?.full_name || user.email?.split('@')[0]}
                       </p>
-                      {role && (
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide shrink-0 shadow-sm ${role === "admin"
-                          ? "bg-red-500/10 text-red-600 dark:text-red-400"
-                          : role === "staff"
-                            ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                            : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                          }`}>
-                          {role === "admin" ? "Admin" : role === "staff" ? "Staff" : "Customer"}
+                      {role === "admin" ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide shrink-0 shadow-xs bg-red-500/10 text-red-600 dark:text-red-400">
+                          Admin
+                        </span>
+                      ) : role === "staff" ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide shrink-0 shadow-xs bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                          Staff
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold shrink-0 bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/20 shadow-2xs">
+                          <span>{tierConfig.iconName}</span>
+                          <span>{tierConfig.name}</span>
                         </span>
                       )}
                     </div>
-                    <p className="text-[12px] text-muted-foreground truncate font-medium">
+                    <p className="text-[12px] text-muted-foreground truncate font-medium mt-0.5">
                       {user.email}
                     </p>
                   </div>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator className="bg-border/40 mb-2" />
+                <DropdownMenuSeparator className="bg-border/40 mb-1.5" />
 
-                <DropdownMenuItem asChild className="px-4 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-primary/10 hover:shadow-sm focus:bg-primary/10 outline-none">
+                <DropdownMenuItem asChild className="px-3.5 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-amber-500/10 hover:shadow-sm focus:bg-amber-500/10 outline-none">
+                  <Link href="/account/coins" className="flex items-center w-full group">
+                    <div className="flex items-center justify-center w-6 h-6 mr-3 shrink-0 group-hover:scale-110 group-hover:rotate-6 transition-transform">
+                      <Image src="/icons/coin.png" alt="Coin" width={22} height={22} className="object-contain" />
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="font-bold text-[13.5px] text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                        Ví Xu & Thẻ VIP
+                      </span>
+                      <span className="text-[11px] text-muted-foreground font-medium mt-0.5 truncate">
+                        Điểm danh & quyền lợi VIP
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/20 shrink-0 font-mono shadow-2xs ml-2">
+                      {Number(profile?.coins_balance || 0).toLocaleString("vi-VN")} Xu
+                    </span>
+                  </Link>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem asChild className="px-3.5 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-primary/10 hover:shadow-sm focus:bg-primary/10 outline-none mt-1">
                   <Link href="/account" className="flex items-center w-full group">
-                    <div className="flex items-center justify-center mr-3 shrink-0 group-hover:scale-110 group-hover:rotate-3 transition-transform">
+                    <div className="flex items-center justify-center w-6 h-6 mr-3 shrink-0 group-hover:scale-110 group-hover:rotate-3 transition-transform">
                       <Image src="/icons/user.png" alt="Tài khoản" width={22} height={22} className="object-contain" />
                     </div>
-                    <div className="flex flex-col">
+                    <div className="flex flex-col min-w-0 flex-1">
                       <span className="font-bold text-[13.5px] group-hover:text-primary transition-colors">Tài khoản của tôi</span>
-                      <span className="text-[11px] text-muted-foreground font-medium mt-0.5">Quản lý thông tin cá nhân</span>
+                      <span className="text-[11px] text-muted-foreground font-medium mt-0.5 truncate">Quản lý thông tin cá nhân</span>
                     </div>
                   </Link>
                 </DropdownMenuItem>
 
-                <DropdownMenuItem asChild className="px-4 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-primary/10 hover:shadow-sm focus:bg-primary/10 outline-none mt-1">
+                <DropdownMenuItem asChild className="px-3.5 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-primary/10 hover:shadow-sm focus:bg-primary/10 outline-none mt-1">
                   <Link href="/account/orders" className="flex items-center w-full group">
-                    <div className="flex items-center justify-center mr-3 shrink-0 group-hover:scale-110 group-hover:-rotate-3 transition-transform">
+                    <div className="flex items-center justify-center w-6 h-6 mr-3 shrink-0 group-hover:scale-110 group-hover:-rotate-3 transition-transform">
                       <Image src="/icons/cart-history.png" alt="Đơn hàng" width={22} height={22} className="object-contain" />
                     </div>
-                    <div className="flex flex-col">
+                    <div className="flex flex-col min-w-0 flex-1">
                       <span className="font-bold text-[13.5px] group-hover:text-primary transition-colors">Lịch sử mua hàng</span>
-                      <span className="text-[11px] text-muted-foreground font-medium mt-0.5">Theo dõi đơn hàng của bạn</span>
+                      <span className="text-[11px] text-muted-foreground font-medium mt-0.5 truncate">Theo dõi đơn hàng của bạn</span>
                     </div>
                   </Link>
                 </DropdownMenuItem>
 
                 {role === "admin" && (
                   <>
-                    <DropdownMenuSeparator className="bg-border/40 my-2" />
-                    <DropdownMenuItem asChild className="px-4 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-blue-500/10 hover:shadow-sm focus:bg-blue-500/10 outline-none">
+                    <DropdownMenuSeparator className="bg-border/40 my-1.5" />
+                    <DropdownMenuItem asChild className="px-3.5 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-blue-500/10 hover:shadow-sm focus:bg-blue-500/10 outline-none">
                       <Link href="/dashboard" className="flex items-center w-full group">
-                        <div className="flex items-center justify-center mr-3 shrink-0 group-hover:scale-110 transition-transform">
+                        <div className="flex items-center justify-center w-6 h-6 mr-3 shrink-0 group-hover:scale-110 transition-transform">
                           <Image src="/icons/dashboard2.png" alt="Admin" width={22} height={22} className="object-contain" />
                         </div>
-                        <div className="flex flex-col">
+                        <div className="flex flex-col min-w-0 flex-1">
                           <span className="font-bold text-[13.5px] text-blue-600 dark:text-blue-400">Trang Quản trị</span>
-                          <span className="text-[11px] text-blue-600/70 dark:text-blue-400/70 font-medium mt-0.5">Dành riêng cho Admin</span>
+                          <span className="text-[11px] text-blue-600/70 dark:text-blue-400/70 font-medium mt-0.5 truncate">Dành riêng cho Admin</span>
                         </div>
                       </Link>
                     </DropdownMenuItem>
@@ -703,25 +741,25 @@ export function SiteHeader() {
 
                 {role === "staff" && (
                   <>
-                    <DropdownMenuSeparator className="bg-border/40 my-2" />
-                    <DropdownMenuItem asChild className="px-4 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-amber-500/10 hover:shadow-sm focus:bg-amber-500/10 outline-none">
+                    <DropdownMenuSeparator className="bg-border/40 my-1.5" />
+                    <DropdownMenuItem asChild className="px-3.5 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-amber-500/10 hover:shadow-sm focus:bg-amber-500/10 outline-none">
                       <Link href="/dashboard" className="flex items-center w-full group">
-                        <div className="flex items-center justify-center mr-3 shrink-0 group-hover:scale-110 transition-transform">
+                        <div className="flex items-center justify-center w-6 h-6 mr-3 shrink-0 group-hover:scale-110 transition-transform">
                           <Image src="/icons/dashboard2.png" alt="Staff" width={22} height={22} className="object-contain" />
                         </div>
-                        <div className="flex flex-col">
+                        <div className="flex flex-col min-w-0 flex-1">
                           <span className="font-bold text-[13.5px] text-amber-600 dark:text-amber-400">Bảng điều hành</span>
-                          <span className="text-[11px] text-amber-600/70 dark:text-amber-400/70 font-medium mt-0.5">Khu vực dành cho Nhân viên</span>
+                          <span className="text-[11px] text-amber-600/70 dark:text-amber-400/70 font-medium mt-0.5 truncate">Khu vực dành cho Nhân viên</span>
                         </div>
                       </Link>
                     </DropdownMenuItem>
                   </>
                 )}
 
-                <DropdownMenuSeparator className="bg-border/40 my-2" />
+                <DropdownMenuSeparator className="bg-border/40 my-1.5" />
 
-                <DropdownMenuItem onClick={() => logout()} className="px-4 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 text-red-600 focus:text-red-700 hover:bg-red-500/10 hover:shadow-sm focus:bg-red-500/10 dark:hover:bg-red-900/30 outline-none w-full group">
-                  <div className="flex items-center justify-center mr-3 shrink-0 group-hover:scale-110 transition-transform">
+                <DropdownMenuItem onClick={() => logout()} className="px-3.5 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 text-red-600 focus:text-red-700 hover:bg-red-500/10 hover:shadow-sm focus:bg-red-500/10 dark:hover:bg-red-900/30 outline-none w-full group">
+                  <div className="flex items-center justify-center w-6 h-6 mr-3 shrink-0 group-hover:scale-110 transition-transform">
                     <Image src="/icons/logout.png" alt="Đăng xuất" width={22} height={22} className="object-contain" />
                   </div>
                   <span className="font-bold text-[13.5px]">Đăng xuất</span>

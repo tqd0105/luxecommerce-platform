@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BranchOption } from "@/lib/services/shipping.service";
 import { Building2, MapPin, ChevronRight, Search, X, Check } from "lucide-react";
+import Image from "next/image";
 
 interface BranchSelectorModalProps {
   isOpen: boolean;
@@ -136,11 +137,10 @@ export function BranchSelectorModal({
               <button
                 type="button"
                 onClick={() => setSelectedDistrict("all")}
-                className={`text-[11px] px-3 py-1 rounded-full font-medium transition-all shrink-0 cursor-pointer ${
-                  selectedDistrict === "all"
+                className={`text-[11px] px-3 py-1 rounded-full font-medium transition-all shrink-0 cursor-pointer ${selectedDistrict === "all"
                     ? "bg-primary text-primary-foreground shadow-xs font-semibold"
                     : "bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/40"
-                }`}
+                  }`}
               >
                 Tất cả ({branches.length})
               </button>
@@ -152,11 +152,10 @@ export function BranchSelectorModal({
                     key={dist}
                     type="button"
                     onClick={() => setSelectedDistrict(dist)}
-                    className={`text-[11px] px-2.5 py-1 rounded-full font-medium transition-all shrink-0 cursor-pointer ${
-                      isSelected
+                    className={`text-[11px] px-2.5 py-1 rounded-full font-medium transition-all shrink-0 cursor-pointer ${isSelected
                         ? "bg-primary text-primary-foreground shadow-xs font-semibold"
                         : "bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/40"
-                    }`}
+                      }`}
                   >
                     {dist} ({count})
                   </button>
@@ -203,8 +202,8 @@ export function BranchSelectorModal({
                   className="group relative p-3 sm:p-3.5 rounded-2xl border border-border/60 hover:border-primary/60 bg-card hover:bg-primary/[0.03] transition-all duration-200 cursor-pointer shadow-2xs hover:shadow-md flex items-center justify-between gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
-                    <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-200 shadow-2xs">
-                      <MapPin className="w-4 h-4" />
+                    <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-200 shadow-2xs">
+                      <Image unoptimized src="/icons/map.png" alt="GPS" width={20} height={20} />
                     </div>
 
                     <div className="flex-1 min-w-0">

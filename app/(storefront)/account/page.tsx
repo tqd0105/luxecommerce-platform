@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import Image from "next/image";
+import { MembershipCard } from "@/components/storefront/membership-card";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   pending: { label: "Chờ xử lý", color: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100" },
@@ -74,42 +75,58 @@ export default function AccountOverviewPage() {
             Xin chào, <span className="font-bold text-primary">{profile?.full_name || user?.email?.split('@')[0]}</span>! 👋
           </h2>
           <p className="text-muted-foreground mt-3 max-w-2xl leading-relaxed text-[15px]">
-            Chào mừng bạn trở lại. Từ bảng điều khiển này, bạn có thể dễ dàng kiểm tra lịch sử mua hàng, quản lý địa chỉ giao nhận và cập nhật thông tin bảo mật của mình.
+            Chào mừng bạn trở lại. Từ bảng điều khiển này, bạn có thể dễ dàng kiểm tra lịch sử mua hàng, quản lý địa chỉ giao nhận, điểm danh nhận xu và theo dõi quyền lợi VIP của mình.
           </p>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Link href="/account/orders" className="group relative bg-card/40 backdrop-blur-md rounded-[24px] border border-border/50 p-6 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-xl hover:bg-card/80 hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+      {/* VIP Membership Card Widget */}
+      <div className="bg-card/40 backdrop-blur-md rounded-[24px] border border-border/50 p-6 shadow-sm">
+        <MembershipCard compact={true} showCheckinButton={true} />
+      </div>
+
+      {/* Stats Grid (4 cols) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <Link href="/account/coins" className="group relative bg-card/40 backdrop-blur-md rounded-[24px] border border-border/50 p-5 sm:p-6 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-xl hover:bg-card/80 hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-b from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="w-14 h-14 sm:w-16 sm:h-16 bg-amber-500/15 dark:bg-amber-900/20 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 shadow-inner text-2xl">
+            🪙
+          </div>
+          <h3 className="font-bold text-[15px] sm:text-[17px] text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">Ví Xu & VIP</h3>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 font-bold">
+            {Number(profile?.coins_balance || 0).toLocaleString("vi-VN")} Xu
+          </p>
+        </Link>
+
+        <Link href="/account/orders" className="group relative bg-card/40 backdrop-blur-md rounded-[24px] border border-border/50 p-5 sm:p-6 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-xl hover:bg-card/80 hover:-translate-y-1 transition-all duration-300 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-900/20 rounded-full flex items-center justify-center mb-5 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 shadow-inner">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 bg-indigo-50 dark:bg-indigo-900/20 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 shadow-inner">
             <Image src="/icons/cart.png" alt="Đơn hàng" width={32} height={32} className="object-contain" />
           </div>
-          <h3 className="font-bold text-[17px] text-foreground group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">Đơn hàng</h3>
-          <p className="text-sm text-muted-foreground mt-1.5 font-medium">
+          <h3 className="font-bold text-[15px] sm:text-[17px] text-foreground group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">Đơn hàng</h3>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 font-medium">
             {loading ? "Đang tải..." : `${stats.ordersCount} đơn hàng`}
           </p>
         </Link>
 
-        <Link href="/account/wishlist" className="group relative bg-card/40 backdrop-blur-md rounded-[24px] border border-border/50 p-6 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-xl hover:bg-card/80 hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+        <Link href="/account/wishlist" className="group relative bg-card/40 backdrop-blur-md rounded-[24px] border border-border/50 p-5 sm:p-6 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-xl hover:bg-card/80 hover:-translate-y-1 transition-all duration-300 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-pink-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="w-16 h-16 bg-pink-50 dark:bg-pink-900/20 rounded-full flex items-center justify-center mb-5 group-hover:scale-110 group-hover:rotate-[-3deg] transition-transform duration-500 shadow-inner">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 bg-pink-50 dark:bg-pink-900/20 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-[-3deg] transition-transform duration-500 shadow-inner">
             <Image src="/icons/love.png" alt="Yêu thích" width={32} height={32} className="object-contain drop-shadow-sm" />
           </div>
-          <h3 className="font-bold text-[17px] text-foreground group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors">Yêu thích</h3>
-          <p className="text-sm text-muted-foreground mt-1.5 font-medium">
+          <h3 className="font-bold text-[15px] sm:text-[17px] text-foreground group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors">Yêu thích</h3>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 font-medium">
             {loading ? "Đang tải..." : `${stats.wishlistCount} sản phẩm`}
           </p>
         </Link>
 
-        <Link href="/account/addresses" className="group relative bg-card/40 backdrop-blur-md rounded-[24px] border border-border/50 p-6 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-xl hover:bg-card/80 hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+        <Link href="/account/addresses" className="group relative bg-card/40 backdrop-blur-md rounded-[24px] border border-border/50 p-5 sm:p-6 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-xl hover:bg-card/80 hover:-translate-y-1 transition-all duration-300 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="w-16 h-16 bg-green-50 dark:bg-green-900/20 rounded-full flex items-center justify-center mb-5 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 shadow-inner">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 bg-green-50 dark:bg-green-900/20 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 shadow-inner">
             <Image src="/icons/location.png" alt="Địa chỉ" width={32} height={32} className="object-contain" />
           </div>
-          <h3 className="font-bold text-[17px] text-foreground group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">Địa chỉ</h3>
-          <p className="text-sm text-muted-foreground mt-1.5 font-medium">
+          <h3 className="font-bold text-[15px] sm:text-[17px] text-foreground group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">Địa chỉ</h3>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 font-medium">
             {loading ? "Đang tải..." : `${stats.addressCount} địa chỉ đã lưu`}
           </p>
         </Link>

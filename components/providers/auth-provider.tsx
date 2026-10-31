@@ -27,6 +27,7 @@ type AuthContextType = {
     loading: boolean;
     logout: () => Promise<void>;
     showLockedAlert: () => void;
+    refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -36,6 +37,7 @@ const AuthContext = createContext<AuthContextType>({
     loading: true,
     logout: async () => {},
     showLockedAlert: () => {},
+    refreshProfile: async () => {},
 });
 
 const clearAuthCache = () => {
@@ -285,8 +287,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setRole(null);
                 setAuthAlert('locked');
                 router.push("/");
-            } else if (data && data.is_locked === false && profile?.is_locked) {
-                setProfile((prev: any) => ({ ...prev, is_locked: false }));
+            } else if (data) {
+                setProfile(data);
             }
         };
 
@@ -322,8 +324,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
     }, [user?.id, router, profile?.is_locked]);
 
+    const refreshProfile = useCallback(async () => {
+        if (!user) return;
+        const { data } = await getProfile(user.id);
+        if (data) {
+            setProfile(data);
+            if (typeof window !== "undefined") {
+                try {
+                    const cachedStr = sessionStorage.getItem(`luxe_auth_cache_${user.id}`);
+                    const cached = cachedStr ? JSON.parse(cachedStr) : {};
+                    cached.profile = data;
+                    sessionStorage.setItem(`luxe_auth_cache_${user.id}`, JSON.stringify(cached));
+                } catch (e) {}
+            }
+        }
+    }, [user]);
+
     return (
-        <AuthContext.Provider value={{ user, profile, role, loading, logout, showLockedAlert }}>
+        <AuthContext.Provider value={{ user, profile, role, loading, logout, showLockedAlert, refreshProfile }}>
             {children}
             <AlertDialog open={authAlert !== 'none'} onOpenChange={(open) => !open && setAuthAlert('none')}>
                 <AlertDialogContent className="sm:max-w-md z-[9999] animate__animated animate__bounceIn">

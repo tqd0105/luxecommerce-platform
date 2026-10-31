@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProductReviewModal, ReviewItemData } from "@/components/storefront/product-review-modal";
+import { OrderTrackingModal } from "@/components/storefront/order-tracking-modal";
 import {
   Card,
   CardContent,
@@ -276,6 +277,10 @@ export default function MyOrdersPage() {
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [itemToReview, setItemToReview] = useState<ReviewItemData | null>(null);
   const [reviewedProductIds, setReviewedProductIds] = useState<Set<string>>(new Set());
+
+  // Tracking modal state
+  const [trackingModalOpen, setTrackingModalOpen] = useState(false);
+  const [selectedTrackingOrder, setSelectedTrackingOrder] = useState<any>(null);
 
   const handleConfirmReceivedOrder = async () => {
     if (!orderToReceive) return;
@@ -672,8 +677,18 @@ export default function MyOrdersPage() {
                   </div>
                   <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto p-3 sm:p-0 bg-background/50 sm:bg-transparent rounded-xl sm:rounded-none border sm:border-0 border-border/50">
                     <div className="sm:text-right flex sm:flex-col items-center sm:items-end justify-between w-full">
-                      <span className="text-[10px] text-muted-foreground sm:block font-bold uppercase tracking-widest mb-0.5">Tổng tiền</span>
+                      <span className="text-[10px] text-muted-foreground sm:block font-bold uppercase tracking-widest mb-0.5">Tổng thanh toán</span>
                       <span className="font-extrabold text-lg sm:text-xl text-primary">{formatCurrency(order.total_amount)}</span>
+                      {Number(order.coins_used || 0) > 0 && (
+                        <span className="text-[11px] text-amber-700 dark:text-amber-400 font-semibold mt-0.5">
+                          🪙 Cấn trừ: -{formatCurrency(Number(order.coins_discount || order.coins_used || 0))}
+                        </span>
+                      )}
+                      {Number(order.coins_earned || 0) > 0 && (
+                        <span className="text-[10.5px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">
+                          ✨ +{Number(order.coins_earned).toLocaleString("vi-VN")} Xu tích lũy
+                        </span>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
@@ -833,58 +848,73 @@ export default function MyOrdersPage() {
                     })}
                   </div>
 
-                  {/* Action */}
-                  {order.status === "pending" && (
-                    <div className="pt-4 border-t border-border/50 flex justify-end">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full sm:w-auto text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 h-10 px-6 rounded-full border border-red-500 shadow-sm text-sm font-bold transition-colors"
-                        disabled={cancellingId === order.id}
-                        onClick={() => confirmCancel(order.id)}
-                      >
-                        {cancellingId === order.id ? (
-                          <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <IconX className="mr-2 h-4 w-4" />
-                        )}
-                        Hủy đơn hàng
-                      </Button>
+                  {/* Action Bar */}
+                  <div className="pt-4 border-t border-border/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedTrackingOrder(order);
+                        setTrackingModalOpen(true);
+                      }}
+                      className="w-full sm:w-auto h-9 px-4 text-xs font-bold rounded-full gap-2 border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 shadow-2xs transition-all cursor-pointer"
+                    >
+                      <Truck className="size-4 text-blue-600 dark:text-blue-400" />
+                      <span>Theo dõi hành trình trực tiếp</span>
+                    </Button>
+
+                    <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
+                      {order.status === "pending" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full sm:w-auto text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 h-9 px-4 rounded-full border border-red-500/40 shadow-xs text-xs font-bold transition-colors"
+                          disabled={cancellingId === order.id}
+                          onClick={() => confirmCancel(order.id)}
+                        >
+                          {cancellingId === order.id ? (
+                            <IconLoader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <IconX className="mr-1.5 h-3.5 w-3.5" />
+                          )}
+                          Hủy đơn hàng
+                        </Button>
+                      )}
+
+                      {order.status === "delivered" && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={confirmingId === order.id}
+                          onClick={() => {
+                            setOrderToReceive(order.id);
+                            setConfirmReceiveModalOpen(true);
+                          }}
+                          className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-bold h-9 px-5 rounded-full shadow-md shrink-0 cursor-pointer transition-all hover:scale-105 active:scale-95 border-0 text-xs"
+                        >
+                          {confirmingId === order.id ? (
+                            <IconLoader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                          ) : (
+                            <CheckCheck className="mr-1.5 h-4 w-4" />
+                          )}
+                          Đã nhận hàng
+                        </Button>
+                      )}
                     </div>
-                  )}
+                  </div>
 
                   {order.status === "delivered" && (
-                    <div className="pt-4 border-t border-border/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex items-center gap-3 text-[13px] text-cyan-700 dark:text-cyan-400 font-medium bg-cyan-500/10 p-3.5 rounded-xl border border-cyan-500/20">
-                        <CheckCircle2 className="size-5 shrink-0 text-cyan-600 dark:text-cyan-400 animate-pulse" />
-                        <span>Đơn hàng đã được giao. Vui lòng xác nhận khi bạn đã nhận được sản phẩm!</span>
-                      </div>
-                      <Button
-                        type="button"
-                        size="lg"
-                        disabled={confirmingId === order.id}
-                        onClick={() => {
-                          setOrderToReceive(order.id);
-                          setConfirmReceiveModalOpen(true);
-                        }}
-                        className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-bold h-11 px-6 rounded-full shadow-lg shrink-0 cursor-pointer transition-all hover:scale-105 active:scale-95 border-0"
-                      >
-                        {confirmingId === order.id ? (
-                          <IconLoader2 className="mr-2 h-5 w-5 animate-spin" />
-                        ) : (
-                          <CheckCheck className="mr-2 h-5 w-5" />
-                        )}
-                        Xác nhận đã nhận hàng
-                      </Button>
+                    <div className="flex items-center gap-2.5 text-xs text-cyan-700 dark:text-cyan-400 font-medium bg-cyan-500/10 p-3 rounded-xl border border-cyan-500/20">
+                      <CheckCircle2 className="size-4 shrink-0 text-cyan-600 dark:text-cyan-400 animate-pulse" />
+                      <span>Đơn hàng đã được giao đến bạn. Vui lòng xác nhận nếu đã nhận đủ sản phẩm!</span>
                     </div>
                   )}
 
                   {order.status === "completed" && (
-                    <div className="pt-4 border-t border-border/50 flex items-center justify-between gap-3 text-[13px] text-green-700 dark:text-green-400 font-medium bg-green-500/10 p-3.5 rounded-xl border border-green-500/20">
-                      <div className="flex items-center gap-2">
-                        <CheckCheck className="size-5 shrink-0" />
-                        <span>Bạn đã xác nhận nhận hàng và hoàn tất đơn đặt hàng này. Cảm ơn quý khách!</span>
-                      </div>
+                    <div className="flex items-center gap-2 text-xs text-green-700 dark:text-green-400 font-medium bg-green-500/10 p-3 rounded-xl border border-green-500/20">
+                      <CheckCheck className="size-4 shrink-0" />
+                      <span>Đơn hàng đã hoàn tất thành công. Cảm ơn quý khách!</span>
                     </div>
                   )}
                 </CardContent>
@@ -943,6 +973,13 @@ export default function MyOrdersPage() {
         onSuccess={(reviewedProductId) => {
           setReviewedProductIds((prev) => new Set(prev).add(reviewedProductId));
         }}
+      />
+
+      {/* Modal theo dõi hành trình đơn hàng thời gian thực */}
+      <OrderTrackingModal
+        open={trackingModalOpen}
+        onOpenChange={setTrackingModalOpen}
+        order={selectedTrackingOrder}
       />
     </div>
   );

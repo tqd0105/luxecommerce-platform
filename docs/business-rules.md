@@ -77,3 +77,33 @@ Tổng hợp các quy tắc nghiệp vụ (Business Logic) hiện tại được
 - **Goong Maps Engine & Từ điển sáp nhập hành chính Việt Nam (Dual-Engine Geocoding):** 
   - Hệ thống tích hợp Goong Maps làm engine ưu tiên số một cho Geocoding, Reverse Geocoding và Places Autocomplete khi `GOONG_API_KEY` được cung cấp. Goong chuyên biệt cho thị trường Việt Nam, cập nhật tức thì dữ liệu phân cấp hành chính mới (như TP. Thủ Đức, các phường/xã sáp nhập) và nhận diện chính xác từng số nhà, ngõ ngách mà không yêu cầu thẻ tín dụng quốc tế.
   - Khi chưa cấu hình Goong Key, hệ thống tự động fallback về OpenStreetMap / Nominatim kết hợp cùng Bảng từ điển ánh xạ sáp nhập (`VIETNAM_MERGER_ALIASES`) nhằm loại bỏ tình trạng từ chối nhầm các địa chỉ hợp lệ ở các địa phương vừa sáp nhập.
+
+## Quy tắc Theo dõi hành trình Vận chuyển (Order Tracking & Milestones)
+- **Cơ chế hoạt động:** Hệ thống mô phỏng và cập nhật theo từng chặng / mốc Hub bưu cục trung chuyển (Milestone-based Tracking) tương tự GHN, Viettel Post, Shopee Xpress:
+  - Cự ly ngắn / nội tỉnh (< 25km): Tạo tự động 4 mốc (Kho xuất hàng $\rightarrow$ Hub phân loại nội thành $\rightarrow$ Shipper đang giao hàng $\rightarrow$ Giao hàng thành công).
+  - Cự ly dài / liên tỉnh (> 25km): Tạo tự động 6 mốc (Kho xuất hàng $\rightarrow$ Trung tâm khai thác liên tỉnh $\rightarrow$ Đang trung chuyển liên tỉnh $\rightarrow$ Bưu cục phát điểm đến $\rightarrow$ Shipper đang phát $\rightarrow$ Giao hàng thành công).
+- **Đồng bộ tự động trạng thái đơn hàng (Order Status Auto-Sync):**
+  - Khi Admin click chuyển mốc sang `out_for_delivery` (Đang giao hàng), trạng thái đơn hàng trong bảng `orders` tự động đồng bộ sang `shipping`.
+  - Khi Admin click hoàn tất mốc cuối cùng `delivered` (Giao thành công), trạng thái đơn hàng trong bảng `orders` tự động đồng bộ sang `delivered`.
+- **Cập nhật thời gian thực (Supabase Realtime):** Toàn bộ giao diện theo dõi của khách hàng (Modal cá nhân hoặc Trang tra cứu công khai) tự động cập nhật vị trí xe trên bản đồ và dòng sự kiện (Timeline) ngay trong khoảnh khắc Admin bấm chuyển mốc mà không cần reload trang.
+- **Quyền tra cứu công khai (Public Tracking Accessibility):** Khách hàng vãng lai hoặc người nhận nhận được link/QR code qua SMS/Email có thể tra cứu trực tiếp hành trình đơn hàng tại `/tracking/[orderId]` mà không cần đăng nhập tài khoản.
+
+## Quy tắc Tích Xu (Loyalty Coins) & Hạng Thành Viên (Membership Tiers)
+- **Tách bạch Điểm thăng hạng trọn đời (`lifetime_coins`) & Xu khả dụng (`coins_balance`):**
+  - `lifetime_coins`: Tích lũy cộng dồn trọn đời, chỉ tăng không giảm. Dùng độc quyền để tính toán và tự động thăng hạng VIP. Việc tiêu xu mua hàng không làm giảm điểm thăng hạng và **không bao giờ bị tụt hạng thành viên**.
+  - `coins_balance`: Số dư xu thực tế để tiêu dùng. 1 Xu = 1 VNĐ.
+- **Tiêu chuẩn Hạng thành viên & Quyền lợi:**
+  - 🥉 **Đồng (Bronze)** (0 - 4.999 điểm): Hoàn 1% xu mỗi đơn, 200 xu/ngày điểm danh, phí ship tiêu chuẩn.
+  - 🥈 **Bạc (Silver)** (5.000 - 19.999 điểm): Hoàn 1.5% xu mỗi đơn, 300 xu/ngày điểm danh, voucher sinh nhật 5%.
+  - 🥇 **Vàng (Gold)** (20.000 - 49.999 điểm): Hoàn 2% xu mỗi đơn, 400 xu/ngày điểm danh, **giảm 50% phí vận chuyển**.
+  - 💎 **Kim Cương (Diamond)** (>= 50.000 điểm): Hoàn 3% xu mỗi đơn, 500 xu/ngày điểm danh, **Freeship 100% toàn quốc mọi đơn**.
+- **Quy tắc Sử dụng Xu tại Thanh toán (Checkout):**
+  - Tối đa 50% giá trị tiền hàng được thanh toán bằng Xu (tránh đơn 0 đồng gian lận).
+  - Khấu trừ Xu và giảm phí ship theo hạng được tính toán và xác thực nghiêm ngặt ở Server-side (`checkout.service.ts`).
+  - Giao dịch tiêu xu được ghi nhận vào `coin_transactions` với type `'order_spent'`.
+- **Tự động thưởng Xu khi Giao hàng (`delivered`):**
+  - Khi đơn hàng chuyển trạng thái sang `delivered` (thông qua cập nhật mốc vận chuyển cuối cùng), Trigger PostgreSQL tự động tính tỷ lệ hoàn xu theo hạng thành viên của khách hàng tại thời điểm giao hàng, cộng vào cả `coins_balance` và `lifetime_coins`, và ghi nhận log `order_reward`.
+  - Nếu đơn hàng bị hủy (`cancelled`) mà khách hàng đã dùng xu, toàn bộ số xu tiêu sẽ được hoàn trả tự động với log `order_refund`.
+- **Điểm danh Hằng ngày (Daily Check-in):**
+  - Mỗi khách hàng được điểm danh 1 lần duy nhất trong ngày lịch (`last_checkin_date = CURRENT_DATE`), kiểm soát bởi RPC `claim_daily_checkin()`.
+  - Nhận ngay xu thưởng theo hạng hiện tại vào ví.

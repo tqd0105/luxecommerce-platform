@@ -8,10 +8,10 @@ import { placeOrder } from "@/lib/services/checkout.service";
 import { getAddresses } from "@/lib/services/address.service";
 import { supabase } from "@/lib/supabase/client";
 import { validateCoupon, Coupon } from "@/lib/services/coupon.service";
-import { 
-  calculateShippingFee, 
-  reverseGeocode, 
-  forwardGeocode, 
+import {
+  calculateShippingFee,
+  reverseGeocode,
+  forwardGeocode,
   forwardGeocodeDetailed,
   getGoogleMapsUrl,
   getCoordinatesFromCity,
@@ -26,16 +26,16 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/components/providers/auth-provider";
 import { IconLoader2 } from "@tabler/icons-react";
-import { 
-  Navigation, 
-  Truck, 
-  MapPin, 
-  CheckCircle2, 
-  ShieldCheck, 
-  AlertCircle, 
-  ExternalLink, 
-  Building2, 
-  Info, 
+import {
+  Navigation,
+  Truck,
+  MapPin,
+  CheckCircle2,
+  ShieldCheck,
+  AlertCircle,
+  ExternalLink,
+  Building2,
+  Info,
   AlertTriangle,
   ChevronRight,
   Lock,
@@ -50,6 +50,7 @@ import { LuxeLoading } from "@/components/storefront/luxe-loading";
 import { CouponSelector } from "@/components/storefront/coupon-selector";
 import { AddressMapPickerModal } from "@/components/storefront/address-map-picker-modal";
 import { BranchSelectorModal } from "@/components/storefront/branch-selector-modal";
+import { getLoyaltyProfile, LoyaltyProfile, TIER_CONFIGS } from "@/lib/services/loyalty.service";
 import Link from "next/link";
 
 const PHONE_REGEX = /^(0|84)(3|5|7|8|9)[0-9]{8}$/;
@@ -79,6 +80,10 @@ export default function CheckoutPage() {
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [saveNewAddress, setSaveNewAddress] = useState<boolean>(true);
   const [createdOrder, setCreatedOrder] = useState<any>(null);
+
+  // Loyalty Coins State
+  const [loyaltyProfile, setLoyaltyProfile] = useState<LoyaltyProfile | null>(null);
+  const [useCoins, setUseCoins] = useState<boolean>(false);
 
   // Vị trí GPS và Phí vận chuyển
   const [customerCoords, setCustomerCoords] = useState<Coordinates | null>(null);
@@ -131,6 +136,13 @@ export default function CheckoutPage() {
     setLoading(false);
   }, []);
 
+  const loadLoyalty = useCallback(async () => {
+    const { data } = await getLoyaltyProfile();
+    if (data) {
+      setLoyaltyProfile(data);
+    }
+  }, []);
+
   useEffect(() => {
     if (!authLoading) {
       if (user) {
@@ -139,11 +151,12 @@ export default function CheckoutPage() {
         }, 0);
         loadCart();
         loadAddresses();
+        loadLoyalty();
       } else {
         router.push("/login");
       }
     }
-  }, [user, authLoading, router, loadCart, loadAddresses]);
+  }, [user, authLoading, router, loadCart, loadAddresses, loadLoyalty]);
 
   useEffect(() => {
     window.addEventListener("cart-updated", loadCart);
@@ -177,14 +190,41 @@ export default function CheckoutPage() {
     return calculateShippingFee(subtotal, customerCoords);
   }, [subtotal, customerCoords]);
 
+  // Tính mức giảm giá từ Xu LuxeCommerce (1 Xu = 1 VNĐ, tối đa 50% tiền hàng)
+  const coinDiscount = useMemo(() => {
+    if (!useCoins || !loyaltyProfile || loyaltyProfile.coinsBalance <= 0) return 0;
+    const productTotal = getSubtotal();
+    const afterCoupon = appliedCoupon ? productTotal - (productTotal * appliedCoupon.discount_percent / 100) : productTotal;
+    const maxAllowed = Math.floor(afterCoupon * 0.5);
+    return Math.min(loyaltyProfile.coinsBalance, maxAllowed);
+  }, [useCoins, loyaltyProfile, getSubtotal, appliedCoupon]);
+
+  // Phí vận chuyển sau khi áp dụng đặc quyền Hạng thành viên
+  const effectiveShippingFee = useMemo(() => {
+    const rawFee = shippingInfo.shippingFee;
+    if (shippingInfo.isFreeShipping) return 0;
+    if (loyaltyProfile?.tier === "diamond") return 0; // Freeship trọn đời cho Kim Cương
+    if (loyaltyProfile?.tier === "gold") return Math.round(rawFee * 0.5); // Giảm 50% phí ship cho Vàng
+    return rawFee;
+  }, [shippingInfo, loyaltyProfile]);
+
   const calculateTotal = () => {
     let total = getSubtotal();
     if (appliedCoupon) {
       total = total - (total * appliedCoupon.discount_percent / 100);
     }
-    total += shippingInfo.shippingFee;
+    total = Math.max(0, total - coinDiscount);
+    total += effectiveShippingFee;
     return total;
   };
+
+  // Ước tính số xu tích lũy được sau khi đơn hàng giao thành công
+  const estimatedCoinsEarned = useMemo(() => {
+    const rate = loyaltyProfile?.tierConfig?.rewardRate || 0.01;
+    const productTotal = getSubtotal();
+    const afterCoupon = appliedCoupon ? productTotal - (productTotal * appliedCoupon.discount_percent / 100) : productTotal;
+    return Math.floor(Math.max(0, afterCoupon - coinDiscount) * rate);
+  }, [loyaltyProfile, getSubtotal, appliedCoupon, coinDiscount]);
 
   const handleApplyCoupon = async (codeOverride?: string) => {
     const code = (codeOverride || couponCodeInput).trim();
@@ -492,10 +532,11 @@ export default function CheckoutPage() {
         couponId: appliedCoupon ? appliedCoupon.id : undefined,
         selectedAddressId: selectedAddressId || undefined,
         saveToAddressBook: !selectedAddressId ? saveNewAddress : false,
-        shippingFee: shippingInfo.shippingFee,
+        shippingFee: effectiveShippingFee,
         distanceKm: shippingInfo.distanceKm,
         latitude: customerCoords.lat,
         longitude: customerCoords.lng,
+        coinsToUse: useCoins ? coinDiscount : 0,
       });
 
       if (error || !order) {
@@ -881,15 +922,14 @@ export default function CheckoutPage() {
             </div>
 
             {/* HỘP ĐỊNH VỊ & XÁC THỰC TỌA ĐỘ VỊ TRÍ GIAO HÀNG */}
-            <div className={`rounded-2xl border p-4 sm:p-5 transition-all duration-300 ${
-              customerCoords && isAddressVerified
-                ? "bg-emerald-500/[0.04] dark:bg-emerald-950/20 border-emerald-500/30 shadow-2xs"
-                : addressNotFound
-                  ? "bg-amber-500/[0.05] dark:bg-amber-950/20 border-amber-500/35 shadow-2xs"
-                  : formData.street.trim() && formData.city.trim()
-                    ? "bg-primary/[0.03] dark:bg-primary/[0.06] border-primary/25 shadow-2xs"
-                    : "bg-muted/30 border-border/60"
-            }`}>
+            <div className={`rounded-2xl border p-4 sm:p-5 transition-all duration-300 ${customerCoords && isAddressVerified
+              ? "bg-emerald-500/[0.04] dark:bg-emerald-950/20 border-emerald-500/30 shadow-2xs"
+              : addressNotFound
+                ? "bg-amber-500/[0.05] dark:bg-amber-950/20 border-amber-500/35 shadow-2xs"
+                : formData.street.trim() && formData.city.trim()
+                  ? "bg-primary/[0.03] dark:bg-primary/[0.06] border-primary/25 shadow-2xs"
+                  : "bg-muted/30 border-border/60"
+              }`}>
               <div className="space-y-3.5">
                 {/* Header trạng thái */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
@@ -907,7 +947,7 @@ export default function CheckoutPage() {
                         <AlertTriangle className="w-4 h-4 text-amber-500" />
                       </div>
                     ) : (
-                      <div className="w-8 h-8 rounded-xl bg-muted text-muted-foreground flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 border  rounded-full bg-muted text-muted-foreground flex items-center justify-center shrink-0">
                         <MapPin className="w-4 h-4 text-muted-foreground" />
                       </div>
                     )}
@@ -1002,7 +1042,7 @@ export default function CheckoutPage() {
                 {addressNotFound && !customerCoords && (
                   <div className="space-y-2.5 pt-2 border-t border-amber-500/20 text-xs">
                     <p className="text-muted-foreground leading-relaxed text-[11.5px]">
-                      Đường mới mở, hẻm sâu hoặc địa điểm mới chưa có trên bản đồ số. Quý khách vui lòng chọn 1 phương án dưới đây để tiếp tục đặt hàng ngay:
+                      Đường mới, hẻm sâu hoặc địa điểm mới chưa có trên bản đồ số. Quý khách vui lòng chọn 1 phương án dưới đây để tiếp tục đặt hàng ngay:
                     </p>
                     <div className="flex flex-wrap items-center gap-2 pt-0.5">
                       <Button
@@ -1012,7 +1052,7 @@ export default function CheckoutPage() {
                         onClick={() => setIsMapPickerOpen(true)}
                         className="h-8 text-xs font-semibold rounded-lg border-primary/40 text-primary hover:bg-primary/10 gap-1.5 cursor-pointer shadow-2xs"
                       >
-                        <MapPin className="w-3.5 h-3.5" />
+                        {/* <MapPin className="w-3.5 h-3.5" /> */}
                         1. Ghim trên bản đồ
                       </Button>
                       <Button
@@ -1022,7 +1062,7 @@ export default function CheckoutPage() {
                         onClick={handleGetGPSLocation}
                         className="h-8 text-xs font-semibold rounded-lg border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 gap-1.5 cursor-pointer shadow-2xs"
                       >
-                        <Image src="/icons/earth.png" alt="GPS" width={12} height={12} />
+                        {/* <Image src="/icons/earth.png" alt="GPS" width={12} height={12} /> */}
                         2. Lấy vị trí GPS
                       </Button>
                       {formData.city.trim() && (
@@ -1056,7 +1096,7 @@ export default function CheckoutPage() {
                     onClick={() => setIsMapPickerOpen(true)}
                     className="rounded-xl text-xs font-semibold h-9 sm:h-10 px-4 border-border/80 hover:bg-primary/5 hover:border-primary/40 transition-all flex items-center justify-center gap-1.5 w-full sm:w-auto shrink-0 shadow-2xs whitespace-nowrap cursor-pointer"
                   >
-                    <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <Image src="/icons/location.png" alt="GPS" width={16} height={16} />
                     <span>Chọn trên bản đồ</span>
                   </Button>
 
@@ -1066,11 +1106,10 @@ export default function CheckoutPage() {
                     size="sm"
                     onClick={handleVerifyAddress}
                     disabled={isGeocoding || !formData.street.trim() || !formData.city.trim()}
-                    className={`rounded-xl text-xs font-bold h-9 sm:h-10 px-4 transition-all flex items-center justify-center gap-1.5 w-full sm:w-auto shrink-0 shadow-2xs whitespace-nowrap cursor-pointer ${
-                      customerCoords && isAddressVerified
-                        ? "border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                        : "bg-primary text-primary-foreground shadow-md shadow-primary/20 hover:scale-[1.01]"
-                    }`}
+                    className={`rounded-xl text-xs font-bold h-9 sm:h-10 px-4 transition-all flex items-center justify-center gap-1.5 w-full sm:w-auto shrink-0 shadow-2xs whitespace-nowrap cursor-pointer ${customerCoords && isAddressVerified
+                      ? "border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                      : "bg-primary text-primary-foreground shadow-md shadow-primary/20 hover:scale-[1.01]"
+                      }`}
                   >
                     {isGeocoding ? (
                       <>
@@ -1079,12 +1118,12 @@ export default function CheckoutPage() {
                       </>
                     ) : customerCoords && isAddressVerified ? (
                       <>
-                        <CheckCircle2 className="w-3.5 h-3.5 mr-1.5 text-emerald-500" />
+                        <Image src="/icons/check.png" alt="GPS" width={16} height={16} />
                         Kiểm tra lại vị trí
                       </>
                     ) : (
                       <>
-                        <Navigation className="w-3.5 h-3.5 mr-1.5" />
+                        <Image src="/icons/send1.png" alt="GPS" width={16} height={16} />
                         Xác nhận &amp; Tìm vị trí
                       </>
                     )}
@@ -1128,11 +1167,10 @@ export default function CheckoutPage() {
             >
               {/* Option COD */}
               <div
-                className={`relative flex flex-col justify-between p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${
-                  formData.paymentMethod === 'cod'
-                    ? 'border-primary bg-primary/[0.04] dark:bg-primary/[0.08] shadow-sm'
-                    : 'border-border/60 bg-background/50 hover:bg-muted/40 hover:border-border'
-                }`}
+                className={`relative flex flex-col justify-between p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${formData.paymentMethod === 'cod'
+                  ? 'border-primary bg-primary/[0.04] dark:bg-primary/[0.08] shadow-sm'
+                  : 'border-border/60 bg-background/50 hover:bg-muted/40 hover:border-border'
+                  }`}
               >
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
@@ -1152,11 +1190,10 @@ export default function CheckoutPage() {
 
               {/* Option Banking */}
               <div
-                className={`relative flex flex-col justify-between p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${
-                  formData.paymentMethod === 'banking'
-                    ? 'border-primary bg-primary/[0.04] dark:bg-primary/[0.08] shadow-sm'
-                    : 'border-border/60 bg-background/50 hover:bg-muted/40 hover:border-border'
-                }`}
+                className={`relative flex flex-col justify-between p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${formData.paymentMethod === 'banking'
+                  ? 'border-primary bg-primary/[0.04] dark:bg-primary/[0.08] shadow-sm'
+                  : 'border-border/60 bg-background/50 hover:bg-muted/40 hover:border-border'
+                  }`}
               >
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
@@ -1261,6 +1298,52 @@ export default function CheckoutPage() {
               />
             </div>
 
+            {/* LuxeCommerce Loyalty Coins Selector */}
+            {loyaltyProfile && loyaltyProfile.coinsBalance > 0 && (
+              <div className="p-3.5 sm:p-4 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/[0.08] via-yellow-500/[0.05] to-transparent shadow-xs transition-all">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="size-8 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0 font-bold text-sm shadow-2xs">
+                      🪙
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-xs sm:text-sm text-foreground">
+                          Dùng Xu LuxeCommerce
+                        </span>
+                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-extrabold ${loyaltyProfile.tierConfig.badgeClass}`}>
+                          {loyaltyProfile.tierConfig.iconName} {loyaltyProfile.tierConfig.label}
+                        </Badge>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                        Khả dụng: <strong className="text-amber-700 dark:text-amber-300 font-bold">{loyaltyProfile.coinsBalance.toLocaleString("vi-VN")} Xu</strong>
+                        {coinDiscount > 0 && useCoins ? ` (Giảm -${formatCurrency(coinDiscount)})` : " (1 Xu = 1đ)"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={useCoins}
+                      onChange={(e) => setUseCoins(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-muted peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600 shadow-inner"></div>
+                  </label>
+                </div>
+
+                {useCoins && (
+                  <div className="mt-2.5 pt-2.5 border-t border-amber-500/20 flex items-center justify-between text-[11px] text-amber-800 dark:text-amber-300 font-semibold">
+                    <span>Áp dụng giảm tiền hàng:</span>
+                    <span className="text-xs font-extrabold text-amber-700 dark:text-amber-300">
+                      -{formatCurrency(coinDiscount)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Pricing Breakdown */}
             <div className="space-y-3 text-xs border-t border-border/50 pt-4">
               <div className="flex justify-between items-center text-muted-foreground">
@@ -1275,30 +1358,53 @@ export default function CheckoutPage() {
                 </div>
               )}
 
+              {useCoins && coinDiscount > 0 && (
+                <div className="flex justify-between items-center text-amber-700 dark:text-amber-300">
+                  <span className="font-medium flex items-center gap-1.5">
+                    <span>🪙</span> Xu tích lũy cấn trừ ({coinDiscount.toLocaleString("vi-VN")} Xu)
+                  </span>
+                  <span className="font-bold text-sm">-{formatCurrency(coinDiscount)}</span>
+                </div>
+              )}
+
               {/* Phí vận chuyển & Freeship */}
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground flex items-center gap-1.5">
                   <Truck className="w-3.5 h-3.5 text-primary" />
                   Phí vận chuyển (~{shippingInfo.distanceKm} km):
                 </span>
-                {shippingInfo.isFreeShipping ? (
+                {shippingInfo.isFreeShipping || effectiveShippingFee === 0 ? (
                   <div className="flex items-center gap-1.5">
-                    <span className="line-through text-[11px] text-muted-foreground">
-                      {formatCurrency(shippingInfo.originalFee)}
-                    </span>
+                    {shippingInfo.originalFee > 0 && (
+                      <span className="line-through text-[11px] text-muted-foreground">
+                        {formatCurrency(shippingInfo.originalFee)}
+                      </span>
+                    )}
                     <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 text-[10px] font-bold px-2 py-0.5">
-                      Freeship
+                      {loyaltyProfile?.tier === "diamond" ? "💎 Freeship Kim Cương" : "Freeship"}
                     </Badge>
                   </div>
                 ) : (
-                  <span className="font-bold text-foreground text-sm">
-                    {formatCurrency(shippingInfo.shippingFee)}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {loyaltyProfile?.tier === "gold" && (
+                      <span className="line-through text-[11px] text-muted-foreground">
+                        {formatCurrency(shippingInfo.shippingFee)}
+                      </span>
+                    )}
+                    <span className="font-bold text-foreground text-sm">
+                      {formatCurrency(effectiveShippingFee)}
+                    </span>
+                    {loyaltyProfile?.tier === "gold" && (
+                      <Badge className="bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border border-yellow-500/25 text-[10px] font-bold px-1.5 py-0">
+                        🥇 -50%
+                      </Badge>
+                    )}
+                  </div>
                 )}
               </div>
 
               {/* Gợi ý / Trạng thái Freeship */}
-              {!shippingInfo.isFreeShipping ? (
+              {!shippingInfo.isFreeShipping && effectiveShippingFee > 0 && (
                 <div className="p-3 rounded-xl bg-amber-500/[0.08] border border-amber-500/20 space-y-1.5">
                   <div className="flex justify-between items-center text-[11px]">
                     <span className="text-amber-800 dark:text-amber-300 font-medium">
@@ -1312,11 +1418,6 @@ export default function CheckoutPage() {
                       style={{ width: `${Math.min(100, Math.round((getSubtotal() / shippingInfo.freeShippingThreshold) * 100))}%` }}
                     />
                   </div>
-                </div>
-              ) : (
-                <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2 text-[11.5px] text-emerald-700 dark:text-emerald-300 font-semibold">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                  <span>Đơn hàng đủ điều kiện miễn phí vận chuyển toàn quốc!</span>
                 </div>
               )}
 
@@ -1332,6 +1433,19 @@ export default function CheckoutPage() {
                   </span>
                 </div>
               </div>
+
+              {/* Preview số xu sẽ nhận được */}
+              {estimatedCoinsEarned > 0 && (
+                <div className="mt-3 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between text-xs text-amber-800 dark:text-amber-300 font-bold">
+                  <span className="flex items-center gap-1.5">
+                    <span>✨</span>
+                    <span>Tích lũy sau khi giao:</span>
+                  </span>
+                  <span className="font-extrabold text-sm text-amber-600 dark:text-amber-400">
+                    +{estimatedCoinsEarned.toLocaleString("vi-VN")} Xu
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* CTA Button Đặt hàng */}
@@ -1350,11 +1464,10 @@ export default function CheckoutPage() {
               <div className="space-y-2.5 pt-2">
                 <Button
                   type="submit"
-                  className={`w-full h-13 text-sm sm:text-base font-bold rounded-2xl shadow-lg transition-all duration-300 ${
-                    !canPlaceOrder
-                      ? "bg-muted text-muted-foreground hover:bg-muted/80 cursor-not-allowed opacity-75"
-                      : "bg-gradient-to-r from-primary to-primary/85 hover:opacity-95 shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.01] cursor-pointer"
-                  }`}
+                  className={`w-full h-13 text-sm sm:text-base font-bold rounded-2xl shadow-lg transition-all duration-300 ${!canPlaceOrder
+                    ? "bg-muted text-muted-foreground hover:bg-muted/80 cursor-not-allowed opacity-75"
+                    : "bg-gradient-to-r from-primary to-primary/85 hover:opacity-95 shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.01] cursor-pointer"
+                    }`}
                   size="lg"
                   disabled={!canPlaceOrder}
                 >

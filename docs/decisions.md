@@ -1,5 +1,81 @@
 # Technical Decisions Log
 
+## 2026-10-28: Loyalty Coins & Membership Tiers System (`20261028011000_create_loyalty_and_membership_tiers.sql`)
+
+### Context
+To drive customer lifetime value (LTV), repeat purchases, and brand loyalty, the store required an institutional-grade loyalty system featuring spendable coins (`coins_balance`), lifetime tier qualification points (`lifetime_coins`), tiered cashback rates, daily check-in rewards, and dynamic checkout discounts.
+
+### Decision
+1. **Lifetime Points vs. Spendable Balance Separation**:
+   - `lifetime_coins` in `profiles`: Cumulative points earned from orders and activities, monotonically increasing. Used exclusively to determine membership tier. Spending coins never decreases lifetime points, ensuring customers are never demoted due to redeeming coins.
+   - `coins_balance` in `profiles`: Current spendable balance (1 coin = 1 VNĐ). Capped at 50% order merchandise subtotal.
+2. **Tier Privileges Matrix**:
+   - 🥉 **Đồng (Bronze)** (0 - 4.999 pts): Hoàn 1% xu mỗi đơn, 200 xu/ngày điểm danh.
+   - 🥈 **Bạc (Silver)** (5.000 - 19.999 pts): Hoàn 1.5% xu mỗi đơn, 300 xu/ngày điểm danh, voucher sinh nhật 5%.
+   - 🥇 **Vàng (Gold)** (20.000 - 49.999 pts): Hoàn 2% xu mỗi đơn, 400 xu/ngày điểm danh, giảm 50% phí vận chuyển.
+   - 💎 **Kim Cương (Diamond)** (>= 50.000 pts): Hoàn 3% xu mỗi đơn, 500 xu/ngày điểm danh, Freeship 100% toàn quốc mọi đơn.
+3. **Database Architecture & PostgreSQL Triggers**:
+   - Dynamic tier calculation trigger `trg_profiles_membership_tier` on `profiles(lifetime_coins)`.
+   - Automatic delivery reward trigger `trg_order_delivered_award_coins` on `orders(status)` transitioning to `delivered`, calculating cashback based on tier at delivery, logging to `coin_transactions`, and auto-refunding coins if order is cancelled.
+   - Idempotent calendar-date daily check-in RPC `claim_daily_checkin()` (SECURITY DEFINER).
+4. **Service & Checkout Integration**:
+   - `lib/services/loyalty.service.ts`: Exposes typed configs, profile lookups, transaction queries, and check-in RPC.
+   - `lib/services/checkout.service.ts` & `app/(storefront)/checkout/page.tsx`: Server-side coin deduction, tier-based shipping discounts (Gold -50%, Diamond Freeship), and live order preview of coins to be earned.
+5. **Customer Experience & Digital VIP Card**:
+   - `components/storefront/membership-card.tsx`: Metallic credit-card style digital card for all 4 tiers with EMV chip, NFC visual, progress bar to next tier, and 1-click daily check-in button.
+   - `app/(storefront)/account/coins/page.tsx`: Dedicated portal with tier privilege comparison matrix, daily streak guide, and transaction history filterable by earn/spend.
+   - Embedded badges in header dropdown, mobile menu drawer, and admin order detail view.
+
+### Consequences
+- Fully server-enforced, tamper-proof loyalty mechanics.
+- Zero extra client overhead for delivery coin awards (executed via PostgreSQL trigger on milestone advancement).
+- Verified with TypeScript 0 errors and zero lint violations.
+
+## 2026-10-28: Order Tracking Milestone Deduplication, Database Unique Constraint & Idempotent RPC (`20261028001000_deduplicate_and_constrain_order_tracking_events.sql`)
+
+### Context
+When viewing order tracking or transitioning milestones, parallel client queries (such as React StrictMode initial effect mounting or concurrent calls from modal and details page) could invoke `get_public_order_tracking` at the same sub-second timestamp. Without a database-level unique constraint on `(order_id, sequence_order)`, both concurrent calls evaluated `NOT EXISTS` as true and inserted milestone templates simultaneously, leading to duplicate milestones (e.g. two Chặng 1, two Chặng 2, etc.).
+
+### Decision
+1. **Deduplication Migration**: Purged duplicate historical rows in `order_tracking_events` using PostgreSQL `ROW_NUMBER() OVER (PARTITION BY order_id, sequence_order ORDER BY is_current DESC, is_completed DESC, completed_at DESC NULLS LAST, created_at ASC)`, safely retaining the most progressed milestone.
+2. **Database Unique Constraint**: Added constraint `uq_order_tracking_events_order_sequence UNIQUE (order_id, sequence_order)` on `order_tracking_events`.
+3. **Idempotent RPC Insert**: Updated `get_public_order_tracking` stored procedure with `ON CONFLICT (order_id, sequence_order) DO NOTHING`, ensuring complete concurrency safety.
+4. **Service-Level Defensive Deduplication**: Added `deduplicateEvents` in `lib/services/order-tracking.service.ts` to guarantee clean data rendering.
+
+### Consequences
+- Zero duplicate milestones can ever be created or rendered.
+- Full idempotent operations across all client environments.
+
+## 2026-10-26: Milestone-Based Realtime Order Tracking System with Leaflet & Supabase Realtime
+
+### Context
+Customers need to track their delivery progress with transparency and confidence without requiring continuous driver GPS tracking over long inter-provincial distances (e.g. Hanoi to HCMC). Real-world logistics carriers (GHN, Viettel Post, Shopee Xpress, FedEx) utilize milestone-based tracking across distribution hubs, local sorting offices, and last-mile dispatchers.
+
+### Decision
+1. **Database Schema & Supabase Realtime (`20261025120000_create_order_tracking_events.sql`)**:
+   - Created `order_tracking_events` table linked to `orders(id)` with cascade deletion.
+   - Stored milestone attributes: `sequence_order`, `status`, `title`, `description`, `location_name`, `latitude`, `longitude`, `is_current`, `is_completed`, `completed_at`.
+   - Enabled RLS with public read access for tracking and admin-only write permissions.
+   - Added table to `supabase_realtime` publication with `REPLICA IDENTITY FULL` for 0ms live broadcast updates.
+2. **Semi-Automated Milestone Generator (`lib/services/order-tracking.service.ts`)**:
+   - `generateMilestoneTemplates`: Generates 4 milestones for intra-province deliveries (< 25km) and 6 milestones with inter-provincial transit hubs for long-distance deliveries (> 25km).
+   - `advanceToNextMilestone`: 1-click transition for admins to advance to the next hub and automatically sync order status to `shipping` or `delivered`.
+   - `subscribeOrderTracking`: WebSocket channel connection with automatic re-rendering.
+3. **Admin Dashboard Integration (`components/dashboard/order-tracking-admin-tab.tsx` & `app/dashboard/orders/page.tsx`)**:
+   - Added a dedicated "Hành trình Vận chuyển" tab inside the order detail dialog.
+   - Provides a 1-click "Chuyển sang mốc tiếp theo" button and status timeline.
+4. **Interactive Customer Live Map & Timeline (`components/storefront/order-tracking-map.tsx` & `order-tracking-timeline.tsx`)**:
+   - Integrated Leaflet map with warehouse pin, milestone checkpoints, glowing radar delivery marker, destination pin, and dual-style polylines (solid for completed route, dashed for remaining route).
+   - Responsive vertical stepper timeline with live pulsing indicator.
+5. **Customer Access Points (`components/storefront/order-tracking-modal.tsx` & `app/(storefront)/tracking/[orderId]/page.tsx`)**:
+   - "Theo dõi hành trình trực tiếp" button embedded in every order card on `/account/orders`.
+   - Standalone public tracking page at `/tracking/[orderId]` for direct access via email, SMS, or QR code without requiring login.
+
+### Consequences
+- Provides institutional-grade order tracking matching top logistics platforms in Vietnam.
+- Zero extra load on mobile devices or drivers since milestones are discrete and updated seamlessly.
+- Passed `pnpm lint` and `tsc --noEmit` with 0 errors and 0 warnings.
+
 ## 2026-10-24: Multi-Branch Campus Geocoding Disambiguation & Interactive Campus Selector Modal
 
 ### Context
