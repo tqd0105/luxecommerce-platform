@@ -20,6 +20,7 @@ import {
   History,
   RotateCcw,
   Check,
+  ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -271,8 +272,47 @@ export default function AccountCoinsPage() {
                   CSKH 1-1 & Ưu tiên đơn
                 </td>
               </tr>
+
+              {/* Hàng 6: Thưởng giới thiệu bạn bè */}
+              <tr className="hover:bg-muted/20 transition-colors">
+                <td className="py-2.5 px-3.5 font-medium text-muted-foreground">Thưởng mời bạn bè</td>
+                <td className={cn("py-2.5 px-3 text-center font-semibold text-amber-700 dark:text-amber-400", currentTier === "bronze" && "bg-primary/5 font-bold")}>
+                  +10.000 Xu
+                </td>
+                <td className={cn("py-2.5 px-3 text-center font-semibold text-slate-700 dark:text-slate-300", currentTier === "silver" && "bg-primary/5 font-bold")}>
+                  +12.000 Xu
+                </td>
+                <td className={cn("py-2.5 px-3 text-center font-bold text-yellow-600 dark:text-yellow-400", currentTier === "gold" && "bg-primary/5")}>
+                  +15.000 Xu
+                </td>
+                <td className={cn("py-2.5 px-3 text-center font-bold text-cyan-600 dark:text-cyan-400", currentTier === "diamond" && "bg-primary/5")}>
+                  +20.000 Xu
+                </td>
+              </tr>
             </tbody>
           </table>
+        </div>
+
+        {/* Banner dẫn sang trang Mời bạn bè */}
+        <div className="mt-4 pt-3.5 border-t border-border/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-primary/5 -mx-5 -mb-5 px-5 py-3 rounded-b-2xl">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xl">🎁</span>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-foreground">
+                Lan tỏa phong cách Luxe — Nhận tới 20.000 Xu mỗi người bạn
+              </p>
+              <p className="text-[11.5px] text-muted-foreground">
+                Mỗi bạn bè hoàn thành đơn đầu tiên, cả 2 đều nhận quà ưu đãi độc quyền.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/account/referrals"
+            className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-2xs"
+          >
+            <span>Mời bạn ngay</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
         </div>
       </div>
 
@@ -347,6 +387,8 @@ export default function AccountCoinsPage() {
                       return { label: "Tích xu đơn", color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" };
                     case "daily_checkin":
                       return { label: "Điểm danh", color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" };
+                    case "referral_reward":
+                      return { label: "Mời bạn bè", color: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20" };
                     case "order_spent":
                       return { label: "Dùng mua hàng", color: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20" };
                     case "order_refund":

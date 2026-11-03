@@ -11,6 +11,7 @@ import { IconLoader2 } from "@tabler/icons-react";
 import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import { isEmailRegistered, sendOtp, verifyOtp, completeRegister } from "@/lib/services/register.service";
+import { getSavedReferralCode, applyReferralCode } from "@/lib/services/referral.service";
 import { getProfile } from "@/lib/services/profile.service";
 import { getRole } from "@/lib/services/role.service";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -30,9 +31,13 @@ export function AuthModal() {
   const [regStep, setRegStep] = useState<"email" | "otp" | "password">("email");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegPassword, setShowRegPassword] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
 
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      const savedCode = getSavedReferralCode();
+      if (savedCode) setReferralCode(savedCode);
+    } else {
       const timer = setTimeout(() => {
         setErrorMsg("");
         setPassword("");
@@ -164,6 +169,13 @@ export function AuthModal() {
     setErrorMsg("");
     try {
       await completeRegister(fullName, password);
+      if (referralCode.trim()) {
+        try {
+          await applyReferralCode(referralCode.trim());
+        } catch (e) {
+          console.error("Lỗi áp dụng mã giới thiệu:", e);
+        }
+      }
       toast.success("Đăng ký hoàn tất! Chào mừng bạn.");
       closeModal();
       if (typeof window !== "undefined" && window.location.pathname === "/cart") {
@@ -403,6 +415,25 @@ export function AuthModal() {
                           {showRegPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                         </Button>
                       </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="referral-code" className="font-semibold text-foreground/90 ml-1">Mã giới thiệu (không bắt buộc)</Label>
+                        {referralCode && (
+                          <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                            ✓ Tự động áp dụng
+                          </span>
+                        )}
+                      </div>
+                      <Input
+                        id="referral-code"
+                        type="text"
+                        placeholder="VD: LUXE-XXXXXX"
+                        value={referralCode}
+                        onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                        className="h-12 rounded-[16px] bg-background/50 border-border/60 focus:bg-background transition-colors px-4 shadow-sm font-mono uppercase tracking-wider"
+                      />
                     </div>
 
                     {errorMsg && (

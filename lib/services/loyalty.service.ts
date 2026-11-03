@@ -8,6 +8,7 @@ export type CoinTransactionType =
   | "order_refund"
   | "daily_checkin"
   | "review_reward"
+  | "referral_reward"
   | "admin_adjustment";
 
 export interface CoinTransaction {

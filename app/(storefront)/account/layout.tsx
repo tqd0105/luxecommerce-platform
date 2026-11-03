@@ -15,6 +15,7 @@ import {
   Sparkles,
   CircleDollarSign,
   ShoppingCart,
+  Users,
 } from "lucide-react";
 
 export default function AccountLayout({ children }: { children: React.ReactNode }) {
@@ -37,6 +38,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
   const menuItems = [
     { name: "Tổng quan", href: "/account", icon: User },
     { name: "Ví Xu & Thẻ VIP", href: "/account/coins", icon: CircleDollarSign },
+    { name: "Mời bạn bè", href: "/account/referrals", icon: Users },
     { name: "Đơn hàng", href: "/account/orders", icon: ShoppingCart },
     { name: "Sổ địa chỉ", href: "/account/addresses", icon: MapPin },
     { name: "Yêu thích", href: "/account/wishlist", icon: Heart },
