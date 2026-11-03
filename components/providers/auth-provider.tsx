@@ -1,6 +1,7 @@
 "use client";
 
 import { getProfile, updateProfile } from "@/lib/services/profile.service";
+import { getSavedReferralCode, applyReferralCode } from "@/lib/services/referral.service";
 import { getRole } from "@/lib/services/role.service";
 import { syncGuestCartToSupabase } from "@/lib/services/cart.service";
 import { supabase } from "@/lib/supabase/client";
@@ -121,6 +122,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             : Promise.resolve({ data: null });
 
         setProfile(currentProfile);
+
+        // Tự động kiểm tra và liên kết mã giới thiệu nếu tài khoản mới chưa có người giới thiệu
+        if (currentProfile && !currentProfile.referred_by) {
+            const savedRefCode = getSavedReferralCode();
+            if (savedRefCode) {
+                applyReferralCode(savedRefCode).catch((err) => {
+                    console.error("Lỗi tự động liên kết mã giới thiệu:", err);
+                });
+            }
+        }
 
         const { data: roleData } = await rolePromise;
         if (roleData) setRole(roleData.name);
