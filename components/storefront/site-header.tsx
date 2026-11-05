@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, ShoppingCart, Heart, Bell, User, Menu, LogOut, Package, HomeIcon, BoxIcon, UserIcon, LogOutIcon, Shield, MapPin, Settings, Sparkles, LayoutDashboard } from "lucide-react";
+import { Search, ShoppingCart, Heart, Bell, User, Menu, LogOut, Package, HomeIcon, BoxIcon, UserIcon, LogOutIcon, Shield, MapPin, Settings, Sparkles, LayoutDashboard, ChevronRight, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuthModal } from "@/lib/store/use-auth-modal";
@@ -34,12 +34,224 @@ import { getProduct } from "@/lib/services/product.service";
 import { getGuestCartItems } from "@/lib/services/cart.service";
 import { TIER_CONFIGS, MembershipTier } from "@/lib/services/loyalty.service";
 
+/**
+ * Trả về toàn bộ phong cách thị giác (màu sắc, viền, hiệu ứng hào quang, thẻ VIP)
+ * tương ứng với từng Hạng thành viên (Đồng, Bạc, Vàng, Kim Cương) và Quyền (Admin, Staff)
+ */
+function getTierTheme(tier: MembershipTier, role: string | null) {
+  if (role === "admin") {
+    return {
+      name: "Quản trị viên",
+      tagline: "SYSTEM ADMINISTRATOR",
+      icon: "👑",
+      iconImg: "/icons/admin.png",
+      triggerRing: "ring-2 ring-rose-500/90 hover:ring-rose-400",
+      triggerGlow: "shadow-[0_0_14px_rgba(244,63,94,0.45)] hover:shadow-[0_0_22px_rgba(244,63,94,0.7)]",
+      triggerBadgeBg: "bg-rose-950 text-rose-300 border-rose-500/80 shadow-[0_0_8px_rgba(244,63,94,0.5)]",
+      dropdownBorder: "border-rose-500/35",
+      dropdownGlow: "shadow-[0_20px_60px_rgba(244,63,94,0.18)]",
+      cardBg: "bg-gradient-to-br from-[#290812] via-[#3d0d1b] to-[#1a050b] text-white",
+      cardBorder: "border-rose-500/40",
+      cardGlow: "shadow-[0_8px_24px_rgba(244,63,94,0.25),inset_0_1px_1px_rgba(255,255,255,0.2)]",
+      cardShine: "bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-rose-500/30 via-pink-500/10 to-transparent",
+      badgeBg: "bg-rose-500/25 text-rose-200 border-rose-400/50 shadow-[0_0_10px_rgba(244,63,94,0.3)]",
+      privilegeText: "Toàn quyền Quản trị & Điều hành Hệ thống",
+      privilegePill: "bg-rose-950/70 border-rose-500/30 text-rose-200",
+      progressBg: "bg-gradient-to-r from-rose-500 to-amber-500",
+      progressTrack: "bg-rose-950/60",
+      accentColor: "text-rose-400",
+      coinBadgeBg: "bg-rose-500/15",
+      coinBadgeText: "text-rose-700 dark:text-rose-400",
+      coinBadgeBorder: "border-rose-500/25",
+      coinHover: "hover:bg-rose-500/10 focus:bg-rose-500/10 group-hover:text-rose-600 dark:group-hover:text-rose-400",
+    };
+  }
+
+  if (role === "staff") {
+    return {
+      name: "Nhân viên Vận hành",
+      tagline: "STAFF OPERATOR",
+      icon: "🛡️",
+      iconImg: "/icons/staff.png",
+      triggerRing: "ring-2 ring-blue-500/90 hover:ring-blue-400",
+      triggerGlow: "shadow-[0_0_14px_rgba(59,130,246,0.45)] hover:shadow-[0_0_22px_rgba(59,130,246,0.7)]",
+      triggerBadgeBg: "bg-blue-950 text-blue-300 border-blue-500/80 shadow-[0_0_8px_rgba(59,130,246,0.5)]",
+      dropdownBorder: "border-blue-500/35",
+      dropdownGlow: "shadow-[0_20px_60px_rgba(59,130,246,0.18)]",
+      cardBg: "bg-gradient-to-br from-[#0a162b] via-[#0f2547] to-[#060f1e] text-white",
+      cardBorder: "border-blue-500/40",
+      cardGlow: "shadow-[0_8px_24px_rgba(59,130,246,0.25),inset_0_1px_1px_rgba(255,255,255,0.2)]",
+      cardShine: "bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-500/30 via-indigo-500/10 to-transparent",
+      badgeBg: "bg-blue-500/25 text-blue-200 border-blue-400/50 shadow-[0_0_10px_rgba(59,130,246,0.3)]",
+      privilegeText: "Xử lý Đơn hàng & Hỗ trợ Khách hàng",
+      privilegePill: "bg-blue-950/70 border-blue-500/30 text-blue-200",
+      progressBg: "bg-gradient-to-r from-blue-500 to-indigo-500",
+      progressTrack: "bg-blue-950/60",
+      accentColor: "text-blue-400",
+      coinBadgeBg: "bg-blue-500/15",
+      coinBadgeText: "text-blue-700 dark:text-blue-400",
+      coinBadgeBorder: "border-blue-500/25",
+      coinHover: "hover:bg-blue-500/10 focus:bg-blue-500/10 group-hover:text-blue-600 dark:group-hover:text-blue-400",
+    };
+  }
+
+  switch (tier) {
+    case "diamond":
+      return {
+        name: "Hội viên Kim Cương",
+        tagline: "SUPREME PRESTIGE VIP",
+        icon: "💎",
+        iconImg: "/icons/diamond.png",
+        triggerRing: "ring-2 ring-cyan-400 hover:ring-cyan-300",
+        triggerGlow: "shadow-[0_0_14px_rgba(6,182,212,0.5)] hover:shadow-[0_0_22px_rgba(6,182,212,0.8)]",
+        triggerBadgeBg: "bg-[#06182c] text-cyan-200 border-cyan-400/80 shadow-[0_0_8px_rgba(6,182,212,0.6)]",
+        dropdownBorder: "border-cyan-500/35",
+        dropdownGlow: "shadow-[0_20px_60px_rgba(6,182,212,0.2)]",
+        cardBg: "bg-gradient-to-br from-[#061427] via-[#0c2445] to-[#041529] text-white",
+        cardBorder: "border-cyan-400/40",
+        cardGlow: "shadow-[0_8px_24px_rgba(6,182,212,0.28),inset_0_1px_1px_rgba(255,255,255,0.25)]",
+        cardShine: "bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-cyan-400/30 via-sky-500/10 to-transparent",
+        badgeBg: "bg-gradient-to-r from-cyan-500/25 to-blue-500/20 text-cyan-200 border-cyan-400/60 shadow-[0_0_12px_rgba(6,182,212,0.45)]",
+        privilegeText: " Tích 3% Xu • Freeship toàn quốc mọi đơn",
+        privilegePill: "bg-cyan-950/70 border-cyan-400/30 text-cyan-200",
+        progressBg: "bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-300",
+        progressTrack: "bg-cyan-950/70",
+        accentColor: "text-cyan-400",
+        coinBadgeBg: "bg-cyan-500/15",
+        coinBadgeText: "text-cyan-700 dark:text-cyan-300",
+        coinBadgeBorder: "border-cyan-500/30",
+        coinHover: "hover:bg-cyan-500/10 focus:bg-cyan-500/10 group-hover:text-cyan-600 dark:group-hover:text-cyan-400",
+      };
+
+    case "gold":
+      return {
+        name: "Hội viên Vàng",
+        tagline: "ROYAL ELITE VIP",
+        icon: "🥇",
+        iconImg: "/icons/gold.png",
+        triggerRing: "ring-2 ring-amber-400 hover:ring-amber-300",
+        triggerGlow: "shadow-[0_0_14px_rgba(251,191,36,0.5)] hover:shadow-[0_0_22px_rgba(251,191,36,0.8)]",
+        triggerBadgeBg: "bg-[#281804] text-amber-200 border-amber-400/80 shadow-[0_0_8px_rgba(251,191,36,0.6)]",
+        dropdownBorder: "border-amber-500/35",
+        dropdownGlow: "shadow-[0_20px_60px_rgba(251,191,36,0.18)]",
+        cardBg: "bg-gradient-to-br from-[#261703] via-[#422906] to-[#1c1102] text-white",
+        cardBorder: "border-amber-400/40",
+        cardGlow: "shadow-[0_8px_24px_rgba(251,191,36,0.28),inset_0_1px_1px_rgba(255,255,255,0.25)]",
+        cardShine: "bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-amber-400/30 via-yellow-500/10 to-transparent",
+        badgeBg: "bg-gradient-to-r from-amber-500/25 to-yellow-500/20 text-amber-200 border-amber-400/60 shadow-[0_0_12px_rgba(251,191,36,0.4)]",
+        privilegeText: " Tích 2% Xu • Giảm 50% Phí vận chuyển",
+        privilegePill: "bg-amber-950/70 border-amber-400/30 text-amber-200",
+        progressBg: "bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-200",
+        progressTrack: "bg-amber-950/70",
+        accentColor: "text-amber-400",
+        coinBadgeBg: "bg-amber-500/15",
+        coinBadgeText: "text-amber-700 dark:text-amber-300",
+        coinBadgeBorder: "border-amber-500/30",
+        coinHover: "hover:bg-amber-500/10 focus:bg-amber-500/10 group-hover:text-amber-600 dark:group-hover:text-amber-400",
+      };
+
+    case "silver":
+      return {
+        name: "Hội viên Bạc",
+        tagline: "PREMIUM SILVER MEMBER",
+        icon: "🥈",
+        iconImg: "/icons/silver.png",
+        triggerRing: "ring-2 ring-slate-300 dark:ring-slate-400 hover:ring-slate-200",
+        triggerGlow: "shadow-[0_0_12px_rgba(148,163,184,0.4)] hover:shadow-[0_0_18px_rgba(148,163,184,0.7)]",
+        triggerBadgeBg: "bg-[#18202d] text-slate-200 border-slate-300/80 shadow-[0_0_8px_rgba(148,163,184,0.45)]",
+        dropdownBorder: "border-slate-400/35",
+        dropdownGlow: "shadow-[0_20px_60px_rgba(148,163,184,0.15)]",
+        cardBg: "bg-gradient-to-br from-[#141b26] via-[#222d3d] to-[#101620] text-white",
+        cardBorder: "border-slate-300/40",
+        cardGlow: "shadow-[0_8px_24px_rgba(148,163,184,0.22),inset_0_1px_1px_rgba(255,255,255,0.2)]",
+        cardShine: "bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-200/25 via-slate-400/10 to-transparent",
+        badgeBg: "bg-gradient-to-r from-slate-300/25 to-slate-400/20 text-slate-100 border-slate-300/60 shadow-[0_0_10px_rgba(148,163,184,0.3)]",
+        privilegeText: " Tích 1.5% Xu • Voucher sinh nhật 5%",
+        privilegePill: "bg-slate-900/70 border-slate-300/30 text-slate-200",
+        progressBg: "bg-gradient-to-r from-slate-300 via-slate-100 to-slate-300",
+        progressTrack: "bg-slate-900/70",
+        accentColor: "text-slate-300",
+        coinBadgeBg: "bg-slate-400/15",
+        coinBadgeText: "text-slate-700 dark:text-slate-300",
+        coinBadgeBorder: "border-slate-400/30",
+        coinHover: "hover:bg-slate-400/10 focus:bg-slate-400/10 group-hover:text-slate-700 dark:group-hover:text-slate-300",
+      };
+
+    case "bronze":
+    default:
+      return {
+        name: "Hội viên Đồng",
+        tagline: "ARTISAN BRONZE MEMBER",
+        icon: "🥉",
+        iconImg: "/icons/bronze.png",
+        triggerRing: "ring-2 ring-amber-700/60 dark:ring-amber-600/70 hover:ring-amber-600",
+        triggerGlow: "shadow-[0_0_10px_rgba(180,83,9,0.3)] hover:shadow-[0_0_16px_rgba(180,83,9,0.55)]",
+        triggerBadgeBg: "bg-[#2b160b] text-amber-200 border-amber-700/80 shadow-[0_0_8px_rgba(180,83,9,0.35)]",
+        dropdownBorder: "border-amber-700/35",
+        dropdownGlow: "shadow-[0_20px_60px_rgba(180,83,9,0.14)]",
+        cardBg: "bg-gradient-to-br from-[#21130a] via-[#351e12] to-[#190e07] text-white",
+        cardBorder: "border-amber-700/40",
+        cardGlow: "shadow-[0_8px_24px_rgba(180,83,9,0.22),inset_0_1px_1px_rgba(255,255,255,0.18)]",
+        cardShine: "bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-amber-600/25 via-orange-600/10 to-transparent",
+        badgeBg: "bg-gradient-to-r from-amber-700/30 to-amber-900/20 text-amber-200 border-amber-600/60 shadow-[0_0_10px_rgba(180,83,9,0.25)]",
+        privilegeText: " Tích 1% Xu • Điểm danh 200 Xu/ngày",
+        privilegePill: "bg-[#2b160b]/70 border-amber-700/30 text-amber-200",
+        progressBg: "bg-gradient-to-r from-amber-600 via-orange-400 to-amber-500",
+        progressTrack: "bg-[#1f0f07]",
+        accentColor: "text-amber-400",
+        coinBadgeBg: "bg-amber-700/15",
+        coinBadgeText: "text-amber-700 dark:text-amber-300",
+        coinBadgeBorder: "border-amber-700/30",
+        coinHover: "hover:bg-amber-700/10 focus:bg-amber-700/10 group-hover:text-amber-700 dark:group-hover:text-amber-400",
+      };
+  }
+}
 
 export function SiteHeader() {
   const { openModal } = useAuthModal();
   const { user, profile, role, logout } = useAuth();
   const userTier: MembershipTier = (profile?.membership_tier as MembershipTier) || "bronze";
   const tierConfig = TIER_CONFIGS[userTier] || TIER_CONFIGS.bronze;
+  const tierStyle = getTierTheme(userTier, role);
+
+  // Tính toán tiến trình thăng hạng VIP
+  const lifetimeCoins = Number(profile?.lifetime_coins || 0);
+  let progressPercent = 100;
+  let pointsToNext = 0;
+  let nextTierName = "";
+  let nextTierIcon = "";
+  let nextTierIconImg = "";
+
+  if (userTier === "bronze") {
+    const target = 5000;
+    pointsToNext = Math.max(0, target - lifetimeCoins);
+    progressPercent = Math.min(100, Math.max(0, Math.round((lifetimeCoins / target) * 100)));
+    nextTierName = "Hạng Bạc";
+    nextTierIcon = "🥈";
+    nextTierIconImg = "/icons/silver.png";
+  } else if (userTier === "silver") {
+    const currentBase = 5000;
+    const target = 20000;
+    pointsToNext = Math.max(0, target - lifetimeCoins);
+    const earned = Math.max(0, lifetimeCoins - currentBase);
+    progressPercent = Math.min(100, Math.max(0, Math.round((earned / (target - currentBase)) * 100)));
+    nextTierName = "Hạng Vàng";
+    nextTierIcon = "🥇";
+    nextTierIconImg = "/icons/gold.png";
+  } else if (userTier === "gold") {
+    const currentBase = 20000;
+    const target = 50000;
+    pointsToNext = Math.max(0, target - lifetimeCoins);
+    const earned = Math.max(0, lifetimeCoins - currentBase);
+    progressPercent = Math.min(100, Math.max(0, Math.round((earned / (target - currentBase)) * 100)));
+    nextTierName = "Kim Cương";
+    nextTierIcon = "💎";
+    nextTierIconImg = "/icons/diamond.png";
+  } else {
+    // diamond
+    progressPercent = 100;
+    pointsToNext = 0;
+  }
   const [cartCount, setCartCount] = useState(0);
   const [isBumping, setIsBumping] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -213,35 +425,86 @@ export function SiteHeader() {
               >
                 <SheetTitle className="sr-only">Menu Điều Hướng</SheetTitle>
                 {/* 1. Header Khu Vực Tài Khoản */}
-                <div className="p-6 pb-5 bg-card/40 border-b border-border/50 relative">
-                  <div className="absolute inset-0 animate__animated animate__fadeInLeft" />
+                <div className="p-4 sm:p-5 bg-card/40 border-b border-border/50 relative">
                   <div className="relative z-10">
                     {user ? (
                       <div className="space-y-3">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-14 w-14 border-2 border-primary/20 shadow-md ring-4 ring-primary/5">
-                            <AvatarImage src={profile?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture} className="object-cover" />
-                            <AvatarFallback className="bg-gradient-to-br from-primary to-primary/50 text-primary-foreground font-bold text-lg">
-                              {user.email?.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-bold text-[17px] truncate text-foreground">
-                              {profile?.full_name || user.user_metadata?.full_name || "Khách hàng"}
-                            </h4>
-                            <p className="text-[13px] text-muted-foreground truncate">{user.email}</p>
-                            <div className="mt-1.5 flex items-center gap-1.5">
-                              {role && (
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide shadow-sm ${role === "admin"
-                                  ? "bg-red-500/10 text-red-600 dark:text-red-400"
-                                  : role === "staff"
-                                    ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                                    : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                                  }`}>
-                                  {role === "admin" ? "Admin" : role === "staff" ? "Staff" : "Thành viên"}
+                        {/* VIP Card Thượng Hạng for Mobile Sheet */}
+                        <div className={cn("p-4 rounded-[20px] relative overflow-hidden border shadow-lg transition-all", tierStyle.cardBg, tierStyle.cardBorder, tierStyle.cardGlow)}>
+                          <div className={cn("absolute inset-0 pointer-events-none", tierStyle.cardShine)} />
+                          <div className="absolute -top-10 -right-10 w-28 h-28 rounded-full blur-2xl opacity-40 pointer-events-none bg-white/20" />
+                          <div className="relative z-10 space-y-2.5">
+                            <div className="flex items-center gap-3">
+                              <div className="relative shrink-0">
+                                <Avatar className="h-12 w-12 ring-2 ring-white/30 shadow-md">
+                                  <AvatarImage src={profile?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture} className="object-cover" />
+                                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary/50 text-primary-foreground font-bold text-base">
+                                    {user.email?.charAt(0).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-black/70 border border-white/40 flex items-center justify-center text-[9px] shadow-sm overflow-hidden p-0.5">
+                                  {tierStyle.iconImg ? (
+                                    <Image
+                                      src={tierStyle.iconImg}
+                                      alt={tierStyle.name}
+                                      width={13}
+                                      height={13}
+                                      unoptimized
+                                      className="object-contain"
+                                    />
+                                  ) : (
+                                    tierStyle.icon
+                                  )}
                                 </span>
-                              )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-1.5">
+                                  <h4 className="font-extrabold text-[15px] truncate text-white leading-tight">
+                                    {profile?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0]}
+                                  </h4>
+                                  <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black shrink-0 border uppercase tracking-wider", tierStyle.badgeBg)}>
+                                    {tierStyle.iconImg ? (
+                                      <Image
+                                        src={tierStyle.iconImg}
+                                        alt={tierStyle.name}
+                                        width={13}
+                                        height={13}
+                                        unoptimized
+                                        className="object-contain shrink-0"
+                                      />
+                                    ) : (
+                                      <span>{tierStyle.icon}</span>
+                                    )}
+                                    <span>{role === "admin" ? "Admin" : role === "staff" ? "Staff" : tierConfig.name}</span>
+                                  </span>
+                                </div>
+                                <p className="text-[12px] text-white/70 truncate font-mono mt-0.5">{user.email}</p>
+                              </div>
                             </div>
+
+                            {/* Privilege Ribbon */}
+                            <div className={cn("px-2.5 py-1.5 rounded-xl border text-[11px] font-medium flex items-center justify-between gap-1.5 shadow-inner", tierStyle.privilegePill)}>
+                              <span className="truncate">{tierStyle.privilegeText}</span>
+                              {/* <Sparkles className="w-3.5 h-3.5 shrink-0 opacity-80" /> */}
+                            </div>
+
+                            {/* Coin balance & VIP link */}
+                            <Link 
+                              href="/account/coins"
+                              onClick={(e) => handleMobileNav("/account/coins", e)}
+                              className="flex items-center justify-between text-[11.5px] font-bold text-white/90 hover:text-white pt-1 border-t border-white/10 transition-colors"
+                            >
+                              <span className="flex items-center gap-1.5">
+                                <span>Ví Xu:</span>
+                                <span className="font-mono text-amber-300 font-extrabold text-[12.5px]">
+                                  {Number(profile?.coins_balance || 0).toLocaleString("vi-VN")} Xu
+                                </span>
+                              </span>
+                              <span className="inline-flex items-center gap-0.5 text-white/80">
+                                <span>Xem đặc quyền VIP</span>
+                                <ChevronRight className="w-3.5 h-3.5" />
+                              </span>
+                            </Link>
                           </div>
                         </div>
 
@@ -371,10 +634,22 @@ export function SiteHeader() {
                         className="flex items-center justify-between px-3.5 py-3 rounded-[14px] font-bold text-[14.5px] bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 shadow-xs transition-all duration-200"
                       >
                         <span className="flex items-center gap-3">
-                          <Sparkles className="w-5 h-5 text-amber-500" /> Ví Xu & Thẻ VIP
+                          <Sparkles className="w-5 h-5 text-amber-500" /> Ví Xu & Điểm danh
                         </span>
                         <span className="text-xs bg-amber-500/20 px-2 py-0.5 rounded-full font-extrabold text-amber-800 dark:text-amber-300">
                           {Number(profile?.coins_balance || 0).toLocaleString("vi-VN")} Xu
+                        </span>
+                      </Link>
+                      <Link
+                        href="/account/referrals"
+                        onClick={(e) => handleMobileNav("/account/referrals", e)}
+                        className="flex items-center justify-between px-3.5 py-3 rounded-[14px] font-bold text-[14.5px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 shadow-xs transition-all duration-200"
+                      >
+                        <span className="flex items-center gap-3">
+                          <Gift className="w-5 h-5 text-emerald-500" /> Giới thiệu bạn bè
+                        </span>
+                        <span className="text-xs bg-emerald-500/20 px-2 py-0.5 rounded-full font-extrabold text-emerald-800 dark:text-emerald-300">
+                          🎁 +10.000 Xu
                         </span>
                       </Link>
                       <Link
@@ -635,135 +910,292 @@ export function SiteHeader() {
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="inline-flex rounded-full border-2 border-transparent hover:border-primary/30 transition-all ml-1 h-9 w-9 md:h-10 md:w-10 p-0 shrink-0 shadow-sm hover:shadow-md">
-                  <Avatar className="h-full w-full">
+                <button
+                  type="button"
+                  className={cn(
+                    "relative inline-flex items-center justify-center rounded-full transition-all duration-300 ml-1 p-0.5 shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 cursor-pointer hover:scale-105 active:scale-95",
+                    tierStyle.triggerRing,
+                    tierStyle.triggerGlow
+                  )}
+                  aria-label="Menu tài khoản cá nhân"
+                >
+                  <Avatar className="h-9 w-9 md:h-10 md:w-10 ring-1 ring-white/20">
                     <AvatarImage src={profile?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture} className="object-cover" />
                     <AvatarFallback className="bg-gradient-to-br from-primary to-primary/50 text-primary-foreground font-bold text-xs">
                       {user.email?.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                </Button>
+                  {/* Micro Tier Badge on bottom-right corner */}
+                  <span
+                    className={cn(
+                      "absolute -bottom-1 -right-1 w-4 h-4 md:w-4.5 md:h-4.5 rounded-full flex items-center justify-center border transition-transform duration-300 shadow-sm overflow-hidden p-0.5",
+                      tierStyle.triggerBadgeBg
+                    )}
+                    title={`${tierStyle.name} (${tierConfig.name})`}
+                  >
+                    {tierStyle.iconImg ? (
+                      <Image
+                        src={tierStyle.iconImg}
+                        alt={tierStyle.name}
+                        width={13}
+                        height={13}
+                        unoptimized
+                        className="object-contain"
+                      />
+                    ) : (
+                      <span className="text-[9px] md:text-[10px]">{tierStyle.icon}</span>
+                    )}
+                  </span>
+                </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-72 p-2.5 rounded-[24px] shadow-2xl border border-border/50 bg-card/80 backdrop-blur-xl z-[100]">
-                <DropdownMenuLabel className="font-normal p-3 bg-gradient-to-br from-primary/5 to-transparent rounded-[16px] mb-1.5 flex items-center gap-3 border border-primary/10 shadow-inner">
-                  <Avatar className="h-10 w-10 shrink-0 ring-2 ring-primary/20 shadow-sm">
-                    <AvatarImage src={profile?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture} className="object-cover" />
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-primary/50 text-primary-foreground font-bold text-xs">
-                      {user.email?.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col min-w-0 flex-1 justify-center">
-                    <div className="flex items-center justify-between gap-1.5">
-                      <p className="text-[14px] font-bold truncate text-foreground">
-                        {profile?.full_name || user.email?.split('@')[0]}
-                      </p>
-                      {role === "admin" ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide shrink-0 shadow-xs bg-red-500/10 text-red-600 dark:text-red-400">
-                          Admin
-                        </span>
-                      ) : role === "staff" ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide shrink-0 shadow-xs bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                          Staff
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold shrink-0 bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/20 shadow-2xs">
-                          <span>{tierConfig.iconName}</span>
-                          <span>{tierConfig.name}</span>
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[12px] text-muted-foreground truncate font-medium mt-0.5">
-                      {user.email}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator className="bg-border/40 mb-1.5" />
-
-                <DropdownMenuItem asChild className="px-3.5 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-amber-500/10 hover:shadow-sm focus:bg-amber-500/10 outline-none">
-                  <Link href="/account/coins" className="flex items-center w-full group">
-                    <div className="flex items-center justify-center w-6 h-6 mr-3 shrink-0 group-hover:scale-110 group-hover:rotate-6 transition-transform">
-                      <Image src="/icons/coin.png" alt="Coin" width={22} height={22} className="object-contain" />
-                    </div>
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <span className="font-bold text-[13.5px] text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-                        Ví Xu & Thẻ VIP
-                      </span>
-                      <span className="text-[11px] text-muted-foreground font-medium mt-0.5 truncate">
-                        Điểm danh & quyền lợi VIP
-                      </span>
-                    </div>
-                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/20 shrink-0 font-mono shadow-2xs ml-2">
-                      {Number(profile?.coins_balance || 0).toLocaleString("vi-VN")} Xu
-                    </span>
-                  </Link>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem asChild className="px-3.5 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-primary/10 hover:shadow-sm focus:bg-primary/10 outline-none mt-1">
-                  <Link href="/account" className="flex items-center w-full group">
-                    <div className="flex items-center justify-center w-6 h-6 mr-3 shrink-0 group-hover:scale-110 group-hover:rotate-3 transition-transform">
-                      <Image src="/icons/user.png" alt="Tài khoản" width={22} height={22} className="object-contain" />
-                    </div>
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <span className="font-bold text-[13.5px] group-hover:text-primary transition-colors">Tài khoản của tôi</span>
-                      <span className="text-[11px] text-muted-foreground font-medium mt-0.5 truncate">Quản lý thông tin cá nhân</span>
-                    </div>
-                  </Link>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem asChild className="px-3.5 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-primary/10 hover:shadow-sm focus:bg-primary/10 outline-none mt-1">
-                  <Link href="/account/orders" className="flex items-center w-full group">
-                    <div className="flex items-center justify-center w-6 h-6 mr-3 shrink-0 group-hover:scale-110 group-hover:-rotate-3 transition-transform">
-                      <Image src="/icons/cart-history.png" alt="Đơn hàng" width={22} height={22} className="object-contain" />
-                    </div>
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <span className="font-bold text-[13.5px] group-hover:text-primary transition-colors">Lịch sử mua hàng</span>
-                      <span className="text-[11px] text-muted-foreground font-medium mt-0.5 truncate">Theo dõi đơn hàng của bạn</span>
-                    </div>
-                  </Link>
-                </DropdownMenuItem>
-
-                {role === "admin" && (
-                  <>
-                    <DropdownMenuSeparator className="bg-border/40 my-1.5" />
-                    <DropdownMenuItem asChild className="px-3.5 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-blue-500/10 hover:shadow-sm focus:bg-blue-500/10 outline-none">
-                      <Link href="/dashboard" className="flex items-center w-full group">
-                        <div className="flex items-center justify-center w-6 h-6 mr-3 shrink-0 group-hover:scale-110 transition-transform">
-                          <Image src="/icons/dashboard2.png" alt="Admin" width={22} height={22} className="object-contain" />
-                        </div>
-                        <div className="flex flex-col min-w-0 flex-1">
-                          <span className="font-bold text-[13.5px] text-blue-600 dark:text-blue-400">Trang Quản trị</span>
-                          <span className="text-[11px] text-blue-600/70 dark:text-blue-400/70 font-medium mt-0.5 truncate">Dành riêng cho Admin</span>
-                        </div>
-                      </Link>
-                    </DropdownMenuItem>
-                  </>
+              <DropdownMenuContent
+                align="end"
+                sideOffset={8}
+                className={cn(
+                  "w-[340px] p-2 rounded-[24px] shadow-2xl border bg-card/95 backdrop-blur-2xl z-[100] transition-all",
+                  tierStyle.dropdownBorder,
+                  tierStyle.dropdownGlow
                 )}
+              >
+                {/* 1. VIP Membership Card Header */}
+                <div className={cn("p-3.5 rounded-[18px] relative overflow-hidden border mb-1.5 transition-all", tierStyle.cardBg, tierStyle.cardBorder, tierStyle.cardGlow)}>
+                  {/* Ambient radial shine */}
+                  <div className={cn("absolute inset-0 pointer-events-none", tierStyle.cardShine)} />
+                  <div className="absolute -top-10 -right-10 w-28 h-28 rounded-full blur-2xl opacity-40 pointer-events-none bg-white/20" />
 
-                {role === "staff" && (
-                  <>
-                    <DropdownMenuSeparator className="bg-border/40 my-1.5" />
-                    <DropdownMenuItem asChild className="px-3.5 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-amber-500/10 hover:shadow-sm focus:bg-amber-500/10 outline-none">
-                      <Link href="/dashboard" className="flex items-center w-full group">
-                        <div className="flex items-center justify-center w-6 h-6 mr-3 shrink-0 group-hover:scale-110 transition-transform">
-                          <Image src="/icons/dashboard2.png" alt="Staff" width={22} height={22} className="object-contain" />
+                  <div className="relative z-10 space-y-2.5">
+                    {/* Top: Avatar, Name, Email & Tier Badge */}
+                    <div className="flex items-center gap-3">
+                      <div className="relative shrink-0">
+                        <Avatar className="h-11 w-11 ring-2 ring-white/30 shadow-md">
+                          <AvatarImage src={profile?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture} className="object-cover" />
+                          <AvatarFallback className="bg-gradient-to-br from-primary to-primary/50 text-primary-foreground font-bold text-sm">
+                            {user.email?.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-black/70 border border-white/40 flex items-center justify-center shadow-sm overflow-hidden p-0.5">
+                          {tierStyle.iconImg ? (
+                            <Image
+                              src={tierStyle.iconImg}
+                              alt={tierStyle.name}
+                              width={16}
+                              height={16}
+                              unoptimized
+                              className="object-contain"
+                            />
+                          ) : (
+                            <span className="text-[9px]">{tierStyle.icon}</span>
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-1.5">
+                          <p className="text-[14.5px] font-extrabold truncate text-white leading-tight drop-shadow-xs">
+                            {profile?.full_name || user.email?.split('@')[0]}
+                          </p>
+                          <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-black shrink-0 border uppercase tracking-wider", tierStyle.badgeBg)}>
+                            {tierStyle.iconImg ? (
+                              <Image
+                                src={tierStyle.iconImg}
+                                alt={tierStyle.name}
+                                width={16}
+                                height={16}
+                                unoptimized
+                                className="object-contain shrink-0"
+                              />
+                            ) : (
+                              <span>{tierStyle.icon}</span>
+                            )}
+                            <span>{role === "admin" ? "Admin" : role === "staff" ? "Staff" : tierConfig.name}</span>
+                          </span>
                         </div>
-                        <div className="flex flex-col min-w-0 flex-1">
-                          <span className="font-bold text-[13.5px] text-amber-600 dark:text-amber-400">Bảng điều hành</span>
-                          <span className="text-[11px] text-amber-600/70 dark:text-amber-400/70 font-medium mt-0.5 truncate">Khu vực dành cho Nhân viên</span>
+                        <p className="text-[11.5px] text-white/70 truncate font-mono font-medium mt-0.5">
+                          {user.email}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Middle: Privilege Ribbon */}
+                    <div className={cn("px-2.5 py-1.5 rounded-xl border text-[11px]  font-medium flex items-center justify-between gap-2 shadow-inner", tierStyle.privilegePill)}>
+                      <span className="truncate">{tierStyle.privilegeText}</span>
+                      {/* <Sparkles className="w-3.5 h-3.5 shrink-0 opacity-80" /> */}
+                    </div>
+
+                    {/* Bottom: Progress to Next Tier (For Customer) */}
+                    {!role && (
+                      <div className="space-y-1 pt-0.5">
+                        <div className="flex items-center justify-between text-[11px]">
+                          {pointsToNext > 0 ? (
+                            <span className="text-white/80 font-medium truncate flex items-center gap-1">
+                              <span>Cần</span>
+                              <strong className="text-white font-bold">{pointsToNext.toLocaleString("vi-VN")} Xu</strong>
+                              <span>lên</span>
+                              {nextTierIconImg ? (
+                                <Image
+                                  src={nextTierIconImg}
+                                  alt={nextTierName}
+                                  width={16}
+                                  height={16}
+                                  unoptimized
+                                  className="object-contain inline-block shrink-0 -mt-0.5"
+                                />
+                              ) : (
+                                <span>{nextTierIcon}</span>
+                              )}
+                              <span className="font-bold text-white">{nextTierName}</span>
+                            </span>
+                          ) : (
+                            <span className="text-cyan-200 font-bold flex items-center gap-1">
+                              <Sparkles className="w-3 h-3 text-cyan-300" /> Đặc quyền VIP cao nhất
+                            </span>
+                          )}
+                          <span className="text-white/90 font-mono font-bold shrink-0 ml-1.5">
+                            {progressPercent}%
+                          </span>
                         </div>
-                      </Link>
-                    </DropdownMenuItem>
-                  </>
-                )}
 
-                <DropdownMenuSeparator className="bg-border/40 my-1.5" />
+                        <div className={cn("h-1.5 w-full rounded-full overflow-hidden p-0.5 shadow-inner", tierStyle.progressTrack)}>
+                          <div
+                            className={cn("h-full rounded-full transition-all duration-700", tierStyle.progressBg)}
+                            style={{ width: `${progressPercent}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
 
-                <DropdownMenuItem onClick={() => logout()} className="px-3.5 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 text-red-600 focus:text-red-700 hover:bg-red-500/10 hover:shadow-sm focus:bg-red-500/10 dark:hover:bg-red-900/30 outline-none w-full group">
-                  <div className="flex items-center justify-center w-6 h-6 mr-3 shrink-0 group-hover:scale-110 transition-transform">
-                    <Image src="/icons/logout.png" alt="Đăng xuất" width={22} height={22} className="object-contain" />
+                    {/* Action link inside card */}
+                    <Link 
+                      href="/account/coins"
+                      className="flex items-center justify-between text-[11px] font-bold text-white/90 hover:text-white pt-1 border-t border-white/10 transition-colors group/link"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <span>Ví Xu:</span>
+                        <span className="font-mono text-amber-300 font-extrabold text-[12px]">
+                          {Number(profile?.coins_balance || 0).toLocaleString("vi-VN")} Xu
+                        </span>
+                      </span>
+                      <span className="inline-flex items-center gap-0.5 group-hover/link:translate-x-0.5 transition-transform text-white/80">
+                        <span>Xem đặc quyền VIP</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </span>
+                    </Link>
                   </div>
-                  <span className="font-bold text-[13.5px]">Đăng xuất</span>
-                </DropdownMenuItem>
+                </div>
+
+                <div className="space-y-0.5 pt-0.5">
+                  {/* 1. Ví Xu */}
+                  <DropdownMenuItem asChild className={cn("px-3.5 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 outline-none group", tierStyle.coinHover)}>
+                    <Link href="/account/coins" className="flex items-center w-full">
+                      <div className="flex items-center justify-center w-6 h-6 mr-3 shrink-0 group-hover:scale-110 group-hover:rotate-6 transition-transform">
+                        <Image src="/icons/coin.png" alt="Coin" width={22} height={22} className="object-contain" />
+                      </div>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="font-bold text-[13.5px] text-foreground transition-colors">
+                          Ví Xu & Điểm danh
+                        </span>
+                        <span className="text-[11px] text-muted-foreground font-medium truncate">
+                          Điểm danh hàng ngày & đổi quà
+                        </span>
+                      </div>
+                      <span className={cn("text-[11px] font-bold px-2 py-0.5 rounded-lg shrink-0 font-mono shadow-2xs ml-2 border", tierStyle.coinBadgeBg, tierStyle.coinBadgeText, tierStyle.coinBadgeBorder)}>
+                        {Number(profile?.coins_balance || 0).toLocaleString("vi-VN")} Xu
+                      </span>
+                    </Link>
+                  </DropdownMenuItem>
+
+                  {/* 2. Giới thiệu bạn bè (Referral Viral) */}
+                  <DropdownMenuItem asChild className="px-3.5 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-emerald-500/10 focus:bg-emerald-500/10 outline-none group">
+                    <Link href="/account/referrals" className="flex items-center w-full">
+                      <div className="flex items-center justify-center w-6 h-6 mr-3 shrink-0 group-hover:scale-110 group-hover:rotate-6 transition-transform">
+                        <Image src="/icons/people.png" alt="Referral" width={22} height={22} className="object-contain" />
+                      </div>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="font-bold text-[13.5px] text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                          Giới thiệu bạn bè
+                        </span>
+                        <span className="text-[11px] text-muted-foreground font-medium truncate">
+                          Mời bạn nhận ngay quà tặng
+                        </span>
+                      </div>
+                      <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 shrink-0 shadow-2xs ml-2 font-mono">
+                        🎁 +10.000 Xu
+                      </span>
+                    </Link>
+                  </DropdownMenuItem>
+
+                  {/* 3. Tài khoản của tôi */}
+                  <DropdownMenuItem asChild className="px-3.5 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-primary/10 hover:shadow-sm focus:bg-primary/10 outline-none group">
+                    <Link href="/account" className="flex items-center w-full">
+                      <div className="flex items-center justify-center w-6 h-6 mr-3 shrink-0 group-hover:scale-110 group-hover:rotate-3 transition-transform">
+                        <Image src="/icons/user.png" alt="Tài khoản" width={22} height={22} className="object-contain" />
+                      </div>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="font-bold text-[13.5px] group-hover:text-primary transition-colors">Tài khoản của tôi</span>
+                        <span className="text-[11px] text-muted-foreground font-medium truncate">Thông tin cá nhân & địa chỉ</span>
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+
+                  {/* 4. Lịch sử mua hàng */}
+                  <DropdownMenuItem asChild className="px-3.5 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-primary/10 hover:shadow-sm focus:bg-primary/10 outline-none group">
+                    <Link href="/account/orders" className="flex items-center w-full">
+                      <div className="flex items-center justify-center w-6 h-6 mr-3 shrink-0 group-hover:scale-110 group-hover:-rotate-3 transition-transform">
+                        <Image src="/icons/cart-history.png" alt="Đơn hàng" width={22} height={22} className="object-contain" />
+                      </div>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="font-bold text-[13.5px] group-hover:text-primary transition-colors">Lịch sử mua hàng</span>
+                        <span className="text-[11px] text-muted-foreground font-medium truncate">Theo dõi đơn & tra cứu</span>
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+
+                  {/* 5. Admin portal */}
+                  {role === "admin" && (
+                    <>
+                      <DropdownMenuSeparator className="bg-border/40 my-1" />
+                      <DropdownMenuItem asChild className="px-3.5 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-rose-500/10 focus:bg-rose-500/10 outline-none group">
+                        <Link href="/dashboard" className="flex items-center w-full">
+                          <div className="flex items-center justify-center w-6 h-6 mr-3 shrink-0 group-hover:scale-110 transition-transform">
+                            <Image src="/icons/dashboard2.png" alt="Admin" width={22} height={22} className="object-contain" />
+                          </div>
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <span className="font-bold text-[13.5px] text-rose-600 dark:text-rose-400">Trang Quản trị Hệ thống</span>
+                            <span className="text-[11px] text-rose-600/70 dark:text-rose-400/70 font-medium truncate">Dành riêng cho Quản trị viên</span>
+                          </div>
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+
+                  {/* 6. Staff portal */}
+                  {role === "staff" && (
+                    <>
+                      <DropdownMenuSeparator className="bg-border/40 my-1" />
+                      <DropdownMenuItem asChild className="px-3.5 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-blue-500/10 focus:bg-blue-500/10 outline-none group">
+                        <Link href="/dashboard" className="flex items-center w-full">
+                          <div className="flex items-center justify-center w-6 h-6 mr-3 shrink-0 group-hover:scale-110 transition-transform">
+                            <Image src="/icons/dashboard2.png" alt="Staff" width={22} height={22} className="object-contain" />
+                          </div>
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <span className="font-bold text-[13.5px] text-blue-600 dark:text-blue-400">Bảng điều hành Đơn hàng</span>
+                            <span className="text-[11px] text-blue-600/70 dark:text-blue-400/70 font-medium truncate">Khu vực Nhân viên vận hành</span>
+                          </div>
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+
+                  <DropdownMenuSeparator className="bg-border/40 my-1" />
+
+                  {/* 7. Đăng xuất */}
+                  <DropdownMenuItem onClick={() => logout()} className="px-3.5 py-2.5 rounded-[14px] cursor-pointer transition-all duration-200 text-red-600 focus:text-red-700 hover:bg-red-500/10 focus:bg-red-500/10 dark:hover:bg-red-950/30 outline-none w-full group">
+                    <div className="flex items-center justify-center w-6 h-6 mr-3 shrink-0 group-hover:scale-110 transition-transform">
+                      <Image src="/icons/logout.png" alt="Đăng xuất" width={22} height={22} className="object-contain" />
+                    </div>
+                    <span className="font-bold text-[13.5px]">Đăng xuất</span>
+                  </DropdownMenuItem>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (

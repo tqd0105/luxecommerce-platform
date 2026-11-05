@@ -28,6 +28,13 @@ import { cn } from "@/lib/utils";
 
 const TIERS_LIST: MembershipTier[] = ["bronze", "silver", "gold", "diamond"];
 
+const TIER_ICON_MAP: Record<MembershipTier, string> = {
+  bronze: "/icons/bronze.png",
+  silver: "/icons/silver.png",
+  gold: "/icons/gold.png",
+  diamond: "/icons/diamond.png",
+};
+
 export default function AccountCoinsPage() {
   const { user, profile } = useAuth();
   const currentTier: MembershipTier = (profile?.membership_tier as MembershipTier) || "bronze";
@@ -69,11 +76,11 @@ export default function AccountCoinsPage() {
         <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
           <Link href="/account" className="hover:text-foreground transition-colors">Tài khoản</Link>
           <span>/</span>
-          <span className="text-primary font-bold">Ví Xu & Thẻ VIP</span>
+          <span className="text-primary font-bold">Ví Xu</span>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground flex items-center gap-2">
-            <span>Ví Xu & Hạng Thành Viên</span>
+            <span>Ví Xu & Thẻ VIP</span>
           </h1>
           <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
             <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -173,8 +180,15 @@ export default function AccountCoinsPage() {
                         isCurrent ? "bg-primary/10 text-primary" : "text-foreground"
                       )}
                     >
-                      <div className="inline-flex items-center gap-1">
-                        <span>{cfg.iconName}</span>
+                      <div className="inline-flex items-center gap-1.5">
+                        <Image
+                          src={TIER_ICON_MAP[t]}
+                          alt={cfg.name}
+                          width={16}
+                          height={16}
+                          unoptimized
+                          className="object-contain shrink-0"
+                        />
                         <span>{cfg.name}</span>
                       </div>
                       {isCurrent && (
