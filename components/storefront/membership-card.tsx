@@ -8,7 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Sparkles, CheckCircle2, Award, Gift, ArrowRight, Zap, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
+
+const TIER_ICON_MAP: Record<MembershipTier, string> = {
+  bronze: "/icons/bronze.png",
+  silver: "/icons/silver.png",
+  gold: "/icons/gold.png",
+  diamond: "/icons/diamond.png",
+};
 
 interface MembershipCardProps {
   compact?: boolean;
@@ -75,17 +83,43 @@ export function TierProgressWidget() {
           />
         </div>
 
-        <div className="flex justify-between text-[11px] text-muted-foreground font-medium">
-          <span>
-            {tierConfig.iconName} {tierConfig.name} ({tierConfig.minPoints.toLocaleString("vi-VN")} pts)
+        <div className="flex justify-between items-center text-[11px] text-muted-foreground font-medium">
+          <span className="flex items-center gap-1.5">
+            <Image
+              src={TIER_ICON_MAP[tier] || "/icons/bronze.png"}
+              alt={tierConfig.name}
+              width={14}
+              height={14}
+              unoptimized
+              className="object-contain shrink-0"
+            />
+            <span>{tierConfig.name} ({tierConfig.minPoints.toLocaleString("vi-VN")} pts)</span>
           </span>
-          <span>{progressPercent}%</span>
+          <span className="font-mono font-bold text-foreground">{progressPercent}%</span>
           {nextTier ? (
-            <span>
-              {nextTier.iconName} {nextTier.name} ({nextTier.minPoints.toLocaleString("vi-VN")} pts)
+            <span className="flex items-center gap-1.5">
+              <Image
+                src={TIER_ICON_MAP[nextTier.tier] || "/icons/gold.png"}
+                alt={nextTier.name}
+                width={14}
+                height={14}
+                unoptimized
+                className="object-contain shrink-0"
+              />
+              <span>{nextTier.name} ({nextTier.minPoints.toLocaleString("vi-VN")} pts)</span>
             </span>
           ) : (
-            <span>💎 Tối đa</span>
+            <span className="flex items-center gap-1 text-cyan-600 dark:text-cyan-400 font-bold">
+              <Image
+                src="/icons/diamond.png"
+                alt="Kim Cương"
+                width={14}
+                height={14}
+                unoptimized
+                className="object-contain shrink-0"
+              />
+              <span>Tối đa</span>
+            </span>
           )}
         </div>
       </div>
@@ -307,11 +341,18 @@ export function MembershipCard({
           <Link
             href="/account/coins"
             className={cn(
-              "px-3 py-1.5 rounded-full border text-xs font-bold uppercase tracking-wide flex items-center gap-1.5 transition-all duration-200 cursor-pointer",
+              "px-3 py-1.5 rounded-full border text-xs font-bold uppercase tracking-wide flex items-center gap-1.5 transition-all duration-200 cursor-pointer shadow-xs hover:scale-105 active:scale-95",
               theme.pill
             )}
           >
-            <span className="text-sm">{tierConfig.iconName}</span>
+            <Image
+              src={TIER_ICON_MAP[tier] || "/icons/bronze.png"}
+              alt={`Hạng ${tierConfig.name}`}
+              width={16}
+              height={16}
+              unoptimized
+              className="object-contain shrink-0"
+            />
             <span className="font-extrabold text-[11px] sm:text-xs">Hạng {tierConfig.name}</span>
             <ChevronRight className="w-3.5 h-3.5 opacity-70 ml-0.5" />
           </Link>
@@ -448,17 +489,43 @@ export function MembershipCard({
               />
             </div>
 
-            <div className="flex justify-between text-[11px] text-muted-foreground font-medium">
-              <span>
-                {tierConfig.iconName} {tierConfig.name} ({tierConfig.minPoints.toLocaleString("vi-VN")} pts)
+            <div className="flex justify-between items-center text-[11px] text-muted-foreground font-medium">
+              <span className="flex items-center gap-1.5">
+                <Image
+                  src={TIER_ICON_MAP[tier] || "/icons/bronze.png"}
+                  alt={tierConfig.name}
+                  width={14}
+                  height={14}
+                  unoptimized
+                  className="object-contain shrink-0"
+                />
+                <span>{tierConfig.name} ({tierConfig.minPoints.toLocaleString("vi-VN")} pts)</span>
               </span>
-              <span>{progressPercent}%</span>
+              <span className="font-mono font-bold text-foreground">{progressPercent}%</span>
               {nextTier ? (
-                <span>
-                  {nextTier.iconName} {nextTier.name} ({nextTier.minPoints.toLocaleString("vi-VN")} pts)
+                <span className="flex items-center gap-1.5">
+                  <Image
+                    src={TIER_ICON_MAP[nextTier.tier] || "/icons/gold.png"}
+                    alt={nextTier.name}
+                    width={14}
+                    height={14}
+                    unoptimized
+                    className="object-contain shrink-0"
+                  />
+                  <span>{nextTier.name} ({nextTier.minPoints.toLocaleString("vi-VN")} pts)</span>
                 </span>
               ) : (
-                <span>💎 Tối đa</span>
+                <span className="flex items-center gap-1 text-cyan-600 dark:text-cyan-400 font-bold">
+                  <Image
+                    src="/icons/diamond.png"
+                    alt="Kim Cương"
+                    width={14}
+                    height={14}
+                    unoptimized
+                    className="object-contain shrink-0"
+                  />
+                  <span>Tối đa</span>
+                </span>
               )}
             </div>
           </div>

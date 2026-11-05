@@ -212,7 +212,7 @@ export function ProductActions({ productId, productName, productImage, productSl
               )}
               {isOutOfStock && (
                 <Badge className="bg-muted/80 backdrop-blur-md text-muted-foreground border-border/50 px-3 py-1.5 text-xs font-bold tracking-widest uppercase shadow-sm pointer-events-none ml-2">
-                  Tạm hết hàng
+                  Tạm hết
                 </Badge>
               )}
             </div>

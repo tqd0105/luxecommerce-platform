@@ -46,6 +46,9 @@ import {
   IconCheck,
   IconChevronDown,
   IconPlus,
+  IconAlertCircle,
+  IconInfoCircle,
+  IconRefresh,
 } from "@tabler/icons-react";
 
 type Product = {
@@ -163,25 +166,32 @@ export function ProductForm({ open, onOpenChange, product, onSuccess }: ProductF
           isExisting: true,
         })) || [];
         
+        const existingVariants: VariantState[] = p.product_variants?.map((v: any) => ({
+          id: v.id,
+          name: v.name,
+          sku: v.sku,
+          price_modifier: String(v.price_modifier),
+          stock_quantity: String(v.stock_quantity),
+        })) || [];
+
+        const totalExistingVariantStock = existingVariants.reduce(
+          (sum: number, v: VariantState) => sum + (parseInt(v.stock_quantity, 10) || 0),
+          0
+        );
+
         setForm({
           name: p.name,
           price: String(p.price),
           category_id: p.category_id ?? "",
           discount_percent: String(p.discount_percent ?? 0),
-          stock_quantity: String(p.stock_quantity ?? 0),
+          stock_quantity: existingVariants.length > 0 ? String(totalExistingVariantStock) : String(p.stock_quantity ?? 0),
           brand: p.brand ?? "",
           description_html: p.description_html ?? "",
           imageFile: null,
           imagePreview: p.image_url ?? "",
           galleryImages: existingGallery,
           imagesToDelete: [],
-          variants: p.product_variants?.map((v: any) => ({
-            id: v.id,
-            name: v.name,
-            sku: v.sku,
-            price_modifier: String(v.price_modifier),
-            stock_quantity: String(v.stock_quantity),
-          })) || [],
+          variants: existingVariants,
           specs: p.product_specs?.map((s: any) => ({
             id: s.id,
             spec_name: s.spec_name,
@@ -294,13 +304,77 @@ export function ProductForm({ open, onOpenChange, product, onSuccess }: ProductF
     });
   };
 
-  const addVariant = () => setForm(f => ({ ...f, variants: [...f.variants, { name: "", sku: "", price_modifier: "0", stock_quantity: "0" }] }));
+  const addVariant = () => setForm(f => {
+    // If first variant and main stock already set > 0, transfer to first variant
+    const initialStock = f.variants.length === 0 && (parseInt(f.stock_quantity, 10) || 0) > 0
+      ? f.stock_quantity
+      : "0";
+    const newVariants = [...f.variants, { name: "", sku: "", price_modifier: "0", stock_quantity: initialStock }];
+    const newTotal = newVariants.reduce((sum, v) => sum + (parseInt(v.stock_quantity, 10) || 0), 0);
+    return {
+      ...f,
+      variants: newVariants,
+      stock_quantity: newTotal.toString(),
+    };
+  });
+
   const updateVariant = (index: number, field: keyof VariantState, value: string) => setForm(f => {
     const newVariants = [...f.variants];
     newVariants[index] = { ...newVariants[index], [field]: value };
+    
+    // Auto-sync main stock when variant stock is updated
+    if (field === "stock_quantity") {
+      const newTotal = newVariants.reduce((sum, v) => sum + (parseInt(v.stock_quantity, 10) || 0), 0);
+      return {
+        ...f,
+        variants: newVariants,
+        stock_quantity: newTotal.toString(),
+      };
+    }
+
     return { ...f, variants: newVariants };
   });
-  const removeVariant = (index: number) => setForm(f => ({ ...f, variants: f.variants.filter((_, i) => i !== index) }));
+
+  const removeVariant = (index: number) => setForm(f => {
+    const newVariants = f.variants.filter((_, i) => i !== index);
+    if (newVariants.length > 0) {
+      const newTotal = newVariants.reduce((sum, v) => sum + (parseInt(v.stock_quantity, 10) || 0), 0);
+      return {
+        ...f,
+        variants: newVariants,
+        stock_quantity: newTotal.toString(),
+      };
+    }
+    return {
+      ...f,
+      variants: newVariants,
+    };
+  });
+
+  // Distribute main stock evenly across all variants
+  const distributeStockToVariants = (targetTotal: number) => {
+    if (form.variants.length === 0) return;
+    const safeTotal = Math.max(0, targetTotal);
+    const count = form.variants.length;
+    const base = Math.floor(safeTotal / count);
+    let remainder = safeTotal % count;
+    const newVariants = form.variants.map((v) => {
+      const qty = base + (remainder > 0 ? 1 : 0);
+      if (remainder > 0) remainder--;
+      return { ...v, stock_quantity: qty.toString() };
+    });
+    setForm(f => ({
+      ...f,
+      variants: newVariants,
+      stock_quantity: safeTotal.toString(),
+    }));
+  };
+
+  // Sync main stock from variants
+  const syncMainStockFromVariants = () => {
+    const sum = form.variants.reduce((acc, v) => acc + (parseInt(v.stock_quantity, 10) || 0), 0);
+    setForm(f => ({ ...f, stock_quantity: sum.toString() }));
+  };
 
   const addSpec = () => setForm(f => ({ ...f, specs: [...f.specs, { spec_name: "", spec_value: "" }] }));
   const updateSpec = (index: number, field: keyof SpecState, value: string) => setForm(f => {
@@ -332,7 +406,9 @@ export function ProductForm({ open, onOpenChange, product, onSuccess }: ProductF
         image_url: imageUrl,
         category_id: form.category_id || null,
         discount_percent: form.discount_percent ? parseInt(form.discount_percent) : 0,
-        stock_quantity: form.stock_quantity ? parseInt(form.stock_quantity) : 0,
+        stock_quantity: form.variants.length > 0
+          ? form.variants.reduce((acc, v) => acc + (parseInt(v.stock_quantity, 10) || 0), 0)
+          : (form.stock_quantity ? parseInt(form.stock_quantity, 10) : 0),
         brand: form.brand.trim() || null,
         description_html: form.description_html.trim() || null,
       };
@@ -391,6 +467,11 @@ export function ProductForm({ open, onOpenChange, product, onSuccess }: ProductF
       setSaving(false);
     }
   };
+
+  const totalVariantStock = form.variants.reduce((acc, v) => acc + (parseInt(v.stock_quantity, 10) || 0), 0);
+  const mainStockNum = parseInt(form.stock_quantity, 10) || 0;
+  const hasVariants = form.variants.length > 0;
+  const isStockSynced = !hasVariants || mainStockNum === totalVariantStock;
 
   return (
     <>
@@ -545,7 +626,29 @@ export function ProductForm({ open, onOpenChange, product, onSuccess }: ProductF
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="product-stock" className="text-sm font-semibold">Tồn kho</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="product-stock" className="text-sm font-semibold">Tồn kho</Label>
+                  {hasVariants && (
+                    <span className={cn(
+                      "text-[11px] font-medium px-2 py-0.5 rounded-full flex items-center gap-1 transition-colors",
+                      isStockSynced 
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" 
+                        : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                    )}>
+                      {isStockSynced ? (
+                        <>
+                          <IconCheck className="size-3" />
+                          Đồng bộ {form.variants.length} biến thể
+                        </>
+                      ) : (
+                        <>
+                          <IconAlertCircle className="size-3" />
+                          Lệch tồn kho
+                        </>
+                      )}
+                    </span>
+                  )}
+                </div>
                 <Input
                   id="product-stock"
                   type="number"
@@ -555,6 +658,49 @@ export function ProductForm({ open, onOpenChange, product, onSuccess }: ProductF
                   onChange={(e) => setForm((f) => ({ ...f, stock_quantity: e.target.value }))}
                   className="rounded-xl bg-background/50 border-border/50 focus-visible:ring-primary/30 h-11"
                 />
+                {hasVariants && (
+                  <div className={cn(
+                    "rounded-xl p-2.5 text-xs transition-all",
+                    isStockSynced
+                      ? "bg-primary/5 border border-primary/15 text-muted-foreground"
+                      : "bg-amber-500/10 border border-amber-500/25 text-foreground"
+                  )}>
+                    {isStockSynced ? (
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5 text-muted-foreground">
+                          <IconInfoCircle className="size-3.5 text-primary shrink-0" />
+                          Kho chung tự động đồng bộ theo tổng các biến thể ({totalVariantStock}).
+                        </span>
+                        {/* <span className="font-semibold text-primary shrink-0">{totalVariantStock} SP</span> */}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-start gap-1.5 text-amber-700 dark:text-amber-300">
+                          <IconAlertCircle className="size-3.5 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                          <span>
+                            Kho chung (<strong>{mainStockNum}</strong>) đang lệch so với tổng các biến thể (<strong>{totalVariantStock}</strong>).
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                          <button
+                            type="button"
+                            onClick={syncMainStockFromVariants}
+                            className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-900 dark:text-amber-100 transition-colors flex items-center gap-1 shadow-md cursor-pointer"
+                          >
+                             Lấy theo biến thể ({totalVariantStock})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => distributeStockToVariants(mainStockNum)}
+                            className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors flex items-center gap-1 shadow-md cursor-pointer"
+                          >
+                            Chia đều {mainStockNum} vào {form.variants.length} biến thể
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -662,23 +808,86 @@ export function ProductForm({ open, onOpenChange, product, onSuccess }: ProductF
 
             {/* Variants Section */}
             <div className="space-y-4 border-t border-border/50 pt-6">
-              <div className="flex items-center justify-between">
-                <Label className="text-base font-bold text-foreground">Tùy chọn (Biến thể)</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addVariant} className="h-9 gap-1.5 rounded-full px-4 border-primary/20 text-primary hover:bg-primary/10">
-                  <IconPlus className="size-4" /> Thêm tùy chọn
-                </Button>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Label className="text-base font-bold text-foreground">Tùy chọn (Biến thể)</Label>
+                    {hasVariants && (
+                      <span className={cn(
+                        "text-xs px-2.5 py-0.5 rounded-full font-medium inline-flex items-center gap-1",
+                        isStockSynced
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                      )}>
+                        {isStockSynced ? (
+                          <>
+                            <IconCheck className="size-3" />
+                            Tổng tồn kho: {totalVariantStock} (Khớp kho)
+                          </>
+                        ) : (
+                          <>
+                            <IconAlertCircle className="size-3" />
+                            Tổng biến thể: {totalVariantStock} (Kho chung: {mainStockNum})
+                          </>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                  
+                </div>
+                <div className="flex items-center gap-2">
+                  {hasVariants && !isStockSynced && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={syncMainStockFromVariants}
+                      className="h-9 gap-1 text-xs rounded-full border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 cursor-pointer"
+                    >
+                      <IconRefresh className="size-3.5" /> Đồng bộ kho ({totalVariantStock})
+                    </Button>
+                  )}
+                  <Button type="button" variant="outline" size="sm" onClick={addVariant} className="h-9 gap-1.5 rounded-full px-4 border-primary/20 text-primary hover:bg-primary/10 cursor-pointer">
+                    <IconPlus className="size-4" /> Thêm tùy chọn
+                  </Button>
+                </div>
               </div>
+
+              {form.variants.length > 0 && (
+                <div className="hidden md:grid grid-cols-4 gap-3 px-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  <span>Tên biến thể</span>
+                  <span>Mã SKU</span>
+                  <span>Giá cộng thêm (VNĐ)</span>
+                  <span className="flex items-center justify-start">
+                    <span>Tồn kho</span>
+                    {/* <span className="text-[10px] lowercase font-normal text-primary">Tự cộng vào kho chung</span> */}
+                  </span>
+                </div>
+              )}
+
               {form.variants.length > 0 ? (
                 <div className="grid gap-3">
                   {form.variants.map((v, i) => (
                     <div key={i} className="flex gap-2 items-start bg-card/50 p-3 rounded-xl border border-border/50 shadow-sm transition-all hover:shadow-md">
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 flex-1">
-                        <Input placeholder="Tên (VD: Màu Đỏ)" value={v.name} onChange={(e) => updateVariant(i, "name", e.target.value)} className="rounded-lg bg-background/50 h-10" />
-                        <Input placeholder="SKU" value={v.sku} onChange={(e) => updateVariant(i, "sku", e.target.value)} className="rounded-lg bg-background/50 h-10" />
-                        <Input placeholder="Giá cộng thêm (VD: 50000)" type="number" value={v.price_modifier} onChange={(e) => updateVariant(i, "price_modifier", e.target.value)} className="rounded-lg bg-background/50 h-10" />
-                        <Input placeholder="Tồn kho" type="number" min="0" value={v.stock_quantity} onChange={(e) => updateVariant(i, "stock_quantity", e.target.value)} className="rounded-lg bg-background/50 h-10" />
+                        <div className="space-y-1 md:space-y-0">
+                          <span className="text-[11px] font-medium text-muted-foreground md:hidden">Tên biến thể:</span>
+                          <Input placeholder="Tên (VD: Màu Đỏ)" value={v.name} onChange={(e) => updateVariant(i, "name", e.target.value)} className="rounded-lg bg-background/50 h-10" />
+                        </div>
+                        <div className="space-y-1 md:space-y-0">
+                          <span className="text-[11px] font-medium text-muted-foreground md:hidden">SKU:</span>
+                          <Input placeholder="SKU" value={v.sku} onChange={(e) => updateVariant(i, "sku", e.target.value)} className="rounded-lg bg-background/50 h-10" />
+                        </div>
+                        <div className="space-y-1 md:space-y-0">
+                          <span className="text-[11px] font-medium text-muted-foreground md:hidden">Giá thêm:</span>
+                          <Input placeholder="Giá cộng thêm (VD: 50000)" type="number" value={v.price_modifier} onChange={(e) => updateVariant(i, "price_modifier", e.target.value)} className="rounded-lg bg-background/50 h-10" />
+                        </div>
+                        <div className="space-y-1 md:space-y-0">
+                          <span className="text-[11px] font-medium text-muted-foreground md:hidden">Tồn kho:</span>
+                          <Input placeholder="Tồn kho" type="number" min="0" value={v.stock_quantity} onChange={(e) => updateVariant(i, "stock_quantity", e.target.value)} className="rounded-lg bg-background/50 h-10" />
+                        </div>
                       </div>
-                      <Button type="button" variant="destructive" size="icon" className="shrink-0 rounded-lg shadow-sm" onClick={() => removeVariant(i)}>
+                      <Button type="button" variant="destructive" size="icon" className="shrink-0 rounded-lg shadow-sm cursor-pointer" onClick={() => removeVariant(i)}>
                         <IconX className="size-4" />
                       </Button>
                     </div>
