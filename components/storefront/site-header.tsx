@@ -373,8 +373,8 @@ export function SiteHeader() {
     if (!user) {
       const updateGuestCount = () => {
         const items = getGuestCartItems();
-        const totalQty = items.reduce((sum, item) => sum + item.quantity, 0);
-        setCartCount(totalQty);
+        // Tính theo số lượng phân loại sản phẩm / biến thể trong giỏ hàng (items.length)
+        setCartCount(items.length);
         initialLoadDone.current = true;
       };
       setTimeout(updateGuestCount, 0);
