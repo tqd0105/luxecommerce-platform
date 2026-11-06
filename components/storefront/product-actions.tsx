@@ -125,6 +125,7 @@ export function ProductActions({ productId, productName, productImage, productSl
           discount_percent: discountPercent,
           image_url: productImage || "/placeholder.png",
           slug: productSlug || productId,
+          stock_quantity: stockQuantity,
         },
         product_variants: selectedVariant || null,
       });
@@ -166,6 +167,7 @@ export function ProductActions({ productId, productName, productImage, productSl
           discount_percent: discountPercent,
           image_url: productImage || "/placeholder.png",
           slug: productSlug || productId,
+          stock_quantity: stockQuantity,
         },
         product_variants: selectedVariant || null,
       });
