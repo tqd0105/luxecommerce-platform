@@ -124,6 +124,7 @@ export interface GuestCartItem {
     discount_percent?: number;
     image_url: string;
     slug: string;
+    stock_quantity?: number;
   };
   product_variants?: {
     id: string;

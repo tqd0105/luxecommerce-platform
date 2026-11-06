@@ -18,6 +18,19 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { useAuthModal } from "@/lib/store/use-auth-modal";
 import { LuxeLoading } from "@/components/storefront/luxe-loading";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+
+// Helper lấy tồn kho tối đa của sản phẩm / biến thể
+const getItemMaxStock = (item: any): number => {
+  if (item?.product_variants && item.product_variants.stock_quantity !== undefined && item.product_variants.stock_quantity !== null) {
+    return Number(item.product_variants.stock_quantity);
+  }
+  if (item?.products && item.products.stock_quantity !== undefined && item.products.stock_quantity !== null) {
+    return Number(item.products.stock_quantity);
+  }
+  return 9999;
+};
 
 export default function CartPage() {
   const router = useRouter();
@@ -26,6 +39,7 @@ export default function CartPage() {
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [inputQuantities, setInputQuantities] = useState<Record<string, string>>({});
 
   const loadCart = useCallback(async () => {
     setLoading(true);
@@ -58,17 +72,80 @@ export default function CartPage() {
 
   const handleUpdateQuantity = async (id: string, newQuantity: number) => {
     if (newQuantity < 1) return;
+
+    const targetItem = cartItems.find((it) => it.id === id);
+    if (targetItem) {
+      const maxStock = getItemMaxStock(targetItem);
+      if (newQuantity > targetItem.quantity && newQuantity > maxStock) {
+        if (maxStock <= 0) {
+          toast.warning("Sản phẩm này hiện đã hết hàng trong kho!");
+        } else {
+          toast.warning(`Kho chỉ còn tối đa ${maxStock} sản phẩm cho lựa chọn này!`);
+        }
+        return;
+      }
+    }
+
+    // Xóa bộ nhớ nhập tạm thời của item nếu có
+    setInputQuantities((prev) => {
+      if (prev[id] !== undefined) {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      }
+      return prev;
+    });
+
     setUpdatingId(id);
     if (user) {
       const { error } = await updateCartItemQuantity(id, newQuantity);
       if (!error) {
         setCartItems(items => items.map(item => item.id === id ? { ...item, quantity: newQuantity } : item));
+      } else {
+        toast.error("Không thể cập nhật số lượng. Vui lòng thử lại!");
       }
     } else {
       updateGuestCartQuantity(id, newQuantity);
       setCartItems(getGuestCartItems());
     }
     setUpdatingId(null);
+  };
+
+  const handleInputChange = (id: string, rawVal: string) => {
+    // Chỉ giữ lại ký tự số
+    const cleanVal = rawVal.replace(/\D/g, "");
+    setInputQuantities((prev) => ({ ...prev, [id]: cleanVal }));
+  };
+
+  const handleInputCommit = (item: any) => {
+    const raw = inputQuantities[item.id];
+    // Nếu chưa từng nhập hoặc không có thay đổi
+    if (raw === undefined) return;
+
+    const maxStock = getItemMaxStock(item);
+    let parsed = parseInt(raw, 10);
+
+    if (isNaN(parsed) || parsed < 1) {
+      parsed = 1;
+      toast.info("Số lượng tối thiểu là 1");
+    } else if (maxStock > 0 && parsed > maxStock) {
+      parsed = maxStock;
+      toast.warning(`Kho chỉ còn tối đa ${maxStock} sản phẩm cho lựa chọn này!`);
+    } else if (maxStock <= 0) {
+      parsed = 1;
+      toast.warning("Sản phẩm này hiện đã hết hàng trong kho!");
+    }
+
+    // Xóa trạng thái nhập tạm thời
+    setInputQuantities((prev) => {
+      const next = { ...prev };
+      delete next[item.id];
+      return next;
+    });
+
+    if (parsed !== item.quantity) {
+      handleUpdateQuantity(item.id, parsed);
+    }
   };
 
   const handleRemove = async (id: string) => {
@@ -104,6 +181,11 @@ export default function CartPage() {
       return total + (calculateItemPrice(item) * item.quantity);
     }, 0);
   };
+
+  const hasStockIssues = cartItems.some((item) => {
+    const maxStock = getItemMaxStock(item);
+    return maxStock <= 0 || item.quantity > maxStock;
+  });
 
   if (authLoading || loading) {
     return <LuxeLoading label="Đang đồng bộ Giỏ hàng..." />;
@@ -175,6 +257,10 @@ export default function CartPage() {
                 {cartItems.map((item) => {
                   const price = calculateItemPrice(item);
                   const isUpdating = updatingId === item.id;
+                  const maxStock = getItemMaxStock(item);
+                  const isExceedingStock = item.quantity > maxStock;
+                  const isOutOfStock = maxStock <= 0;
+
                   return (
                     <TableRow key={item.id} className={`border-border/50 hover:bg-muted/30 transition-colors ${isUpdating ? "opacity-50 pointer-events-none" : ""}`}>
                       <TableCell className="p-4 sm:p-4">
@@ -194,6 +280,20 @@ export default function CartPage() {
                                 {item.product_variants && (
                                   <p className="text-xs md:text-sm text-muted-foreground mt-1">Phân loại: {item.product_variants.name}</p>
                                 )}
+                                {/* Cảnh báo tồn kho */}
+                                {isOutOfStock ? (
+                                  <span className="inline-flex items-center text-[11px] font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded-md mt-1.5 w-fit">
+                                    Hết hàng trong kho
+                                  </span>
+                                ) : isExceedingStock ? (
+                                  <span className="inline-flex items-center text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md mt-1.5 w-fit">
+                                    Vượt tồn kho (Còn tối đa: {maxStock})
+                                  </span>
+                                ) : maxStock <= 5 ? (
+                                  <span className="inline-flex items-center text-[11px] text-muted-foreground mt-1">
+                                    Kho còn: <strong className="ml-1 text-foreground font-semibold">{maxStock}</strong>
+                                  </span>
+                                ) : null}
                               </div>
                               {/* Mobile Delete Button */}
                               <Button
@@ -220,18 +320,39 @@ export default function CartPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-7 w-7 rounded-md bg-background shadow-sm hover:bg-background/80 hover:text-primary transition-colors"
+                                  className="h-7 w-7 rounded-md bg-background shadow-sm hover:bg-background/80 hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                   onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
-                                  disabled={item.quantity <= 1}
+                                  disabled={item.quantity <= 1 || isUpdating}
                                 >
                                   <IconMinus className="h-3.5 w-3.5" />
                                 </Button>
-                                <span className="w-8 text-center text-sm font-bold">{item.quantity}</span>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  value={inputQuantities[item.id] !== undefined ? inputQuantities[item.id] : item.quantity}
+                                  onChange={(e) => handleInputChange(item.id, e.target.value)}
+                                  onFocus={(e) => e.target.select()}
+                                  onBlur={() => handleInputCommit(item)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      (e.target as HTMLInputElement).blur();
+                                    }
+                                  }}
+                                  disabled={isUpdating || isOutOfStock}
+                                  className={cn(
+                                    "w-9 text-center font-bold text-sm bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-primary/40 rounded py-0.5 px-0 selection:bg-primary/20 transition-all",
+                                    isExceedingStock && "text-destructive font-extrabold"
+                                  )}
+                                  aria-label="Số lượng sản phẩm"
+                                  title="Nhấp để nhập số lượng"
+                                />
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-7 w-7 rounded-md bg-background shadow-sm hover:bg-background/80 hover:text-primary transition-colors"
+                                  className="h-7 w-7 rounded-md bg-background shadow-sm hover:bg-background/80 hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                   onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                                  disabled={item.quantity >= maxStock || isOutOfStock || isUpdating}
                                 >
                                   <IconPlus className="h-3.5 w-3.5" />
                                 </Button>
@@ -255,18 +376,39 @@ export default function CartPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-background shadow-sm hover:bg-background/80 hover:text-primary shrink-0 transition-colors"
+                            className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-background shadow-sm hover:bg-background/80 hover:text-primary shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
-                            disabled={item.quantity <= 1}
+                            disabled={item.quantity <= 1 || isUpdating}
                           >
                             <IconMinus className="h-3.5 w-3.5" />
                           </Button>
-                          <span className="w-8 sm:w-10 text-center font-bold text-sm sm:text-base">{item.quantity}</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={inputQuantities[item.id] !== undefined ? inputQuantities[item.id] : item.quantity}
+                            onChange={(e) => handleInputChange(item.id, e.target.value)}
+                            onFocus={(e) => e.target.select()}
+                            onBlur={() => handleInputCommit(item)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                (e.target as HTMLInputElement).blur();
+                              }
+                            }}
+                            disabled={isUpdating || isOutOfStock}
+                            className={cn(
+                              "w-10 sm:w-12 text-center font-bold text-sm sm:text-base bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-primary/40 rounded py-0.5 px-0 selection:bg-primary/20 transition-all",
+                              isExceedingStock && "text-destructive font-extrabold"
+                            )}
+                            aria-label="Số lượng sản phẩm"
+                            title="Nhấp để nhập số lượng"
+                          />
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-background shadow-sm hover:bg-background/80 hover:text-primary shrink-0 transition-colors"
+                            className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-background shadow-sm hover:bg-background/80 hover:text-primary shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                            disabled={item.quantity >= maxStock || isOutOfStock || isUpdating}
                           >
                             <IconPlus className="h-3.5 w-3.5" />
                           </Button>
@@ -286,7 +428,7 @@ export default function CartPage() {
                         </Button>
                       </TableCell>
                     </TableRow>
-                  )
+                  );
                 })}
               </TableBody>
             </Table>
@@ -319,6 +461,15 @@ export default function CartPage() {
               </div>
             </div>
 
+            {hasStockIssues && (
+              <div className="mb-4 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs leading-relaxed flex items-start gap-2">
+                <span className="font-bold text-sm leading-none shrink-0 mt-0.5">⚠️</span>
+                <span>
+                  Một số sản phẩm đã hết hàng hoặc số lượng vượt quá tồn kho. Vui lòng điều chỉnh trước khi thanh toán.
+                </span>
+              </div>
+            )}
+
             {user ? (
               role === "admin" || role === "staff" ? (
                 <div className="space-y-3">
@@ -332,18 +483,40 @@ export default function CartPage() {
                   </p>
                 </div>
               ) : (
-                <Button className="w-full h-14 text-base font-bold rounded-xl bg-gradient-to-r from-primary to-primary/80 hover:opacity-90 transition-opacity shadow-lg shadow-primary/20 hover:scale-[1.02] duration-300" size="lg" asChild>
-                  <Link href="/checkout">Tiến hành thanh toán</Link>
+                <Button
+                  className={cn(
+                    "w-full h-14 text-base font-bold rounded-xl shadow-lg transition-all duration-300",
+                    hasStockIssues
+                      ? "opacity-50 cursor-not-allowed bg-muted text-muted-foreground shadow-none"
+                      : "bg-gradient-to-r from-primary to-primary/80 hover:opacity-90 shadow-primary/20 hover:scale-[1.02]"
+                  )}
+                  size="lg"
+                  disabled={hasStockIssues}
+                  asChild={!hasStockIssues}
+                >
+                  {hasStockIssues ? (
+                    <span>Cần điều chỉnh số lượng</span>
+                  ) : (
+                    <Link href="/checkout">Tiến hành thanh toán</Link>
+                  )}
                 </Button>
               )
             ) : (
               <div className="space-y-3">
                 <Button
-                  className="w-full h-14 text-base font-bold rounded-xl bg-gradient-to-r from-primary to-primary/80 hover:opacity-90 transition-opacity shadow-lg shadow-primary/20 hover:scale-[1.02] duration-300"
+                  className={cn(
+                    "w-full h-14 text-base font-bold rounded-xl shadow-lg transition-all duration-300",
+                    hasStockIssues
+                      ? "opacity-50 cursor-not-allowed bg-muted text-muted-foreground shadow-none"
+                      : "bg-gradient-to-r from-primary to-primary/80 hover:opacity-90 shadow-primary/20 hover:scale-[1.02]"
+                  )}
                   size="lg"
-                  onClick={() => openModal("login")}
+                  disabled={hasStockIssues}
+                  onClick={() => {
+                    if (!hasStockIssues) openModal("login");
+                  }}
                 >
-                  Đăng nhập để thanh toán
+                  {hasStockIssues ? "Cần điều chỉnh số lượng" : "Đăng nhập để thanh toán"}
                 </Button>
                 <p className="text-[12px] text-center text-muted-foreground font-medium px-2">
                   * Vui lòng đăng nhập để hoàn tất đặt hàng. Giỏ hàng sẽ được tự động lưu.
