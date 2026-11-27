@@ -35,9 +35,52 @@ const TIER_ICON_MAP: Record<MembershipTier, string> = {
   diamond: "/icons/diamond.png",
 };
 
+const TIER_RULE_STYLES: Record<
+  MembershipTier,
+  {
+    ambient: string;
+    iconBox: string;
+    pill: string;
+    dot: string;
+    highlight: string;
+  }
+> = {
+  diamond: {
+    ambient: "bg-cyan-400/15",
+    iconBox: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-300",
+    pill: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/20",
+    dot: "bg-cyan-500",
+    highlight: "text-cyan-700 dark:text-cyan-300",
+  },
+  gold: {
+    ambient: "bg-amber-400/15",
+    iconBox: "bg-amber-500/15 text-amber-600 dark:text-amber-300",
+    pill: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20",
+    dot: "bg-amber-500",
+    highlight: "text-amber-700 dark:text-amber-300",
+  },
+  silver: {
+    ambient: "bg-slate-400/15",
+    iconBox: "bg-slate-500/15 text-slate-600 dark:text-slate-300",
+    pill: "bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-400/25",
+    dot: "bg-slate-400",
+    highlight: "text-slate-700 dark:text-slate-200",
+  },
+  bronze: {
+    ambient: "bg-amber-600/15",
+    iconBox: "bg-amber-700/15 text-amber-700 dark:text-amber-400",
+    pill: "bg-amber-700/10 text-amber-800 dark:text-amber-300 border-amber-700/20",
+    dot: "bg-amber-600",
+    highlight: "text-amber-700 dark:text-amber-400",
+  },
+};
+
 export default function AccountCoinsPage() {
   const { user, profile } = useAuth();
   const currentTier: MembershipTier = (profile?.membership_tier as MembershipTier) || "bronze";
+  const currentTierConfig = TIER_CONFIGS[currentTier] || TIER_CONFIGS.bronze;
+  const currentRuleStyle = TIER_RULE_STYLES[currentTier] || TIER_RULE_STYLES.bronze;
+  const currentRewardPercent = Math.round(currentTierConfig.rewardRate * 100 * 10) / 10;
 
   const [transactions, setTransactions] = useState<CoinTransaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(true);
@@ -104,44 +147,78 @@ export default function AccountCoinsPage() {
         <div className="lg:col-span-5 space-y-4">
           <TierProgressWidget />
 
-          {/* Bảng tóm tắt quy tắc - Gọn gàng, lấp đầy hoàn hảo khoảng trống */}
-          <div className="bg-card/60 backdrop-blur-md border border-border/50 rounded-2xl p-4 sm:p-5 space-y-3 shadow-2xs">
-            <div className="flex items-center gap-2 border-b border-border/40 pb-2.5">
-              <div className="w-6 h-6 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                <Sparkles className="w-3.5 h-3.5" />
+          {/* Bảng tóm tắt quy tắc & đặc quyền cá nhân hóa theo hạng hiện tại */}
+          <div className="relative overflow-hidden bg-card/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-border/50 dark:border-white/10 rounded-2xl p-4 sm:p-5 space-y-3 shadow-[0_8px_30px_-10px_rgba(15,23,42,0.08)]">
+            <div className={cn("absolute -bottom-12 -right-12 w-32 h-32 rounded-full blur-2xl pointer-events-none", currentRuleStyle.ambient)} />
+
+            <div className="relative z-10 flex items-center justify-between gap-2 border-b border-border/40 pb-2.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className={cn("w-6 h-6 rounded-lg flex items-center justify-center shrink-0", currentRuleStyle.iconBox)}>
+                  <Sparkles className="w-3.5 h-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-xs sm:text-[13px] text-foreground uppercase tracking-wide truncate">
+                    Quy tắc & Đặc quyền của bạn
+                  </h3>
+                  <p className="text-[10.5px] text-muted-foreground">Áp dụng theo hạng thành viên hiện tại</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-bold text-xs sm:text-[13px] text-foreground uppercase tracking-wide">Quy tắc Ví Xu & Quyền Lợi</h3>
-                <p className="text-[10.5px] text-muted-foreground">Minh bạch & tích lũy vĩnh viễn</p>
-              </div>
+
+              <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider shrink-0", currentRuleStyle.pill)}>
+                <Image
+                  src={TIER_ICON_MAP[currentTier]}
+                  alt={currentTierConfig.name}
+                  width={12}
+                  height={12}
+                  unoptimized
+                  className="object-contain shrink-0"
+                />
+                <span>{currentTierConfig.name}</span>
+              </span>
             </div>
 
-            <div className="space-y-2.5 text-xs leading-relaxed">
+            <div className="relative z-10 space-y-2.5 text-xs leading-relaxed">
               <div className="flex items-start gap-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                <span className={cn("w-1.5 h-1.5 rounded-full mt-1.5 shrink-0", currentRuleStyle.dot)} />
                 <div>
-                  <strong className="text-foreground">Dùng xu mua hàng:</strong> Khấu trừ trực tiếp tới <strong className="text-foreground font-bold">50%</strong> tiền hàng trong giỏ.
+                  <strong className="text-foreground">Hoàn xu tự động:</strong> Bạn đang nhận{" "}
+                  <strong className={cn("font-bold tabular-nums", currentRuleStyle.highlight)}>
+                    {currentRewardPercent}%
+                  </strong>{" "}
+                  giá trị mỗi đơn hàng thành công
+                  {currentTier !== "diamond" && (
+                    <span className="text-muted-foreground"> (tối đa 3% ở Kim Cương)</span>
+                  )}.
                 </div>
               </div>
 
               <div className="flex items-start gap-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                <span className={cn("w-1.5 h-1.5 rounded-full mt-1.5 shrink-0", currentRuleStyle.dot)} />
                 <div>
-                  <strong className="text-foreground">Hoàn xu tự động:</strong> Nhận từ <strong className="text-foreground font-bold">1% - 3%</strong> giá trị đơn ngay khi nhận hàng thành công.
+                  <strong className="text-foreground">Điểm danh mỗi ngày:</strong> Nhận cố định{" "}
+                  <strong className={cn("font-bold tabular-nums", currentRuleStyle.highlight)}>
+                    +{currentTierConfig.dailyReward.toLocaleString("vi-VN")} Xu/ngày
+                  </strong>{" "}
+                  khi đăng nhập và điểm danh.
                 </div>
               </div>
 
               <div className="flex items-start gap-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
+                <span className={cn("w-1.5 h-1.5 rounded-full mt-1.5 shrink-0", currentRuleStyle.dot)} />
                 <div>
-                  <strong className="text-foreground">Điểm danh mỗi ngày:</strong> Mở web bấm nhận xu từ <strong className="text-foreground font-bold">200 - 500 Xu/ngày</strong> tùy theo hạng.
+                  <strong className="text-foreground">Đặc quyền vận chuyển & quà tặng:</strong>{" "}
+                  <strong className={cn("font-semibold", currentRuleStyle.highlight)}>
+                    {currentTierConfig.shippingDiscountLabel}
+                  </strong>.
                 </div>
               </div>
 
               <div className="flex items-start gap-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 mt-1.5 shrink-0" />
+                <span className={cn("w-1.5 h-1.5 rounded-full mt-1.5 shrink-0", currentRuleStyle.dot)} />
                 <div>
-                  <strong className="text-foreground">Không bao giờ tụt hạng:</strong> Điểm thăng hạng là điểm trọn đời (<code className="font-mono text-[11px] text-primary">lifetime</code>), tiêu xu không làm giảm cấp VIP.
+                  <strong className="text-foreground">Dùng xu & Không tụt hạng:</strong> Trừ tới{" "}
+                  <strong className="text-foreground font-bold">50%</strong> tiền hàng trong giỏ • Điểm{" "}
+                  <code className="font-mono text-[11px] text-primary">lifetime</code> tích lũy vĩnh viễn.
                 </div>
               </div>
             </div>

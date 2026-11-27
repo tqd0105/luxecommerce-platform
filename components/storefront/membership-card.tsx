@@ -4,9 +4,8 @@ import { useState } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { TIER_CONFIGS, MembershipTier, claimDailyCheckin } from "@/lib/services/loyalty.service";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Sparkles, CheckCircle2, Award, Gift, ArrowRight, Zap, ChevronRight } from "lucide-react";
+import { Sparkles, CheckCircle2, Award, Gift, ArrowRight, Zap } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -44,41 +43,66 @@ export function TierProgressWidget() {
     : 100;
   const pointsNeeded = nextTier ? Math.max(nextTierMin - lifetimeCoins, 0) : 0;
 
-  const getProgressColor = () => {
+  const getProgressStyle = () => {
     switch (tier) {
-      case "diamond": return "bg-gradient-to-r from-cyan-400 to-indigo-400";
-      case "gold": return "bg-gradient-to-r from-yellow-300 to-amber-400";
-      case "silver": return "bg-gradient-to-r from-slate-300 to-slate-500";
+      case "diamond":
+        return {
+          bar: "bg-gradient-to-r from-cyan-500 to-indigo-400",
+          iconBox: "bg-cyan-500/12 text-cyan-600 dark:text-cyan-300",
+          ambient: "bg-cyan-400/15",
+        };
+      case "gold":
+        return {
+          bar: "bg-gradient-to-r from-amber-500 to-yellow-400",
+          iconBox: "bg-amber-500/12 text-amber-600 dark:text-amber-300",
+          ambient: "bg-amber-400/15",
+        };
+      case "silver":
+        return {
+          bar: "bg-gradient-to-r from-slate-400 to-slate-500 dark:from-slate-300 dark:to-slate-400",
+          iconBox: "bg-slate-500/12 text-slate-600 dark:text-slate-300",
+          ambient: "bg-slate-400/15",
+        };
       case "bronze":
-      default: return "bg-gradient-to-r from-amber-500 to-orange-400";
+      default:
+        return {
+          bar: "bg-gradient-to-r from-amber-600 to-orange-400",
+          iconBox: "bg-amber-700/12 text-amber-700 dark:text-amber-400",
+          ambient: "bg-amber-600/15",
+        };
     }
   };
 
+  const progressStyle = getProgressStyle();
+
   return (
-    <div className="bg-card/60 backdrop-blur-md border border-border/50 rounded-2xl p-4 sm:p-5 shadow-2xs space-y-3">
-      <div className="flex items-center justify-between text-xs sm:text-sm">
-        <div className="flex items-center gap-1.5 font-bold text-foreground">
-          <Award className="w-4 h-4 text-primary" />
-          <span>Tiến trình </span>
+    <div className="relative overflow-hidden bg-card/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-border/50 dark:border-white/10 rounded-2xl p-4 sm:p-5 shadow-[0_8px_30px_-10px_rgba(15,23,42,0.08)] space-y-3">
+      <div className={cn("absolute -top-10 -right-10 w-28 h-28 rounded-full blur-2xl pointer-events-none", progressStyle.ambient)} />
+      <div className="relative z-10 flex items-center justify-between text-xs sm:text-sm">
+        <div className="flex items-center gap-2 font-bold text-foreground">
+          <span className={cn("w-6 h-6 rounded-lg flex items-center justify-center shrink-0", progressStyle.iconBox)}>
+            <Award className="w-3.5 h-3.5" />
+          </span>
+          <span>Tiến trình thăng hạng</span>
         </div>
 
         {nextTier ? (
           <span className="text-xs text-muted-foreground font-medium">
-            Cần thêm <strong className="text-primary font-bold">{pointsNeeded.toLocaleString("vi-VN")}</strong> xu để lên{" "}
+            Cần thêm <strong className="text-foreground font-bold tabular-nums">{pointsNeeded.toLocaleString("vi-VN")}</strong> xu để lên{" "}
             <strong className="text-foreground">{nextTier.name}</strong>
           </span>
         ) : (
-          <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+          <span className="text-xs text-cyan-600 dark:text-cyan-400 font-bold flex items-center gap-1">
             <CheckCircle2 className="w-3.5 h-3.5" /> Hạng cao nhất
           </span>
         )}
       </div>
 
       {/* Thanh Progress */}
-      <div className="space-y-1.5">
-        <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden p-0.5 shadow-inner">
+      <div className="relative z-10 space-y-1.5">
+        <div className="h-2.5 w-full bg-muted/80 dark:bg-white/10 rounded-full overflow-hidden p-0.5 shadow-inner">
           <div
-            className={cn("h-full rounded-full transition-all duration-700", getProgressColor())}
+            className={cn("h-full rounded-full transition-all duration-700", progressStyle.bar)}
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -197,66 +221,135 @@ export function MembershipCard({
     }
   };
 
-  // Styling bóng bẩy sang trọng theo từng hạng thẻ (Glassmorphism & Molten Metallic)
+  // Styling thẻ kim loại tối giản cao cấp với sắc độ riêng biệt cho từng hạng
   const getCardTheme = () => {
     switch (tier) {
       case "diamond":
         return {
-          wrapper: "bg-gradient-to-br from-[#0c1322] via-[#071328] to-[#040814] border-cyan-400/40 text-cyan-50 shadow-[0_16px_40px_rgba(6,182,212,0.25)]",
-          glow: "from-cyan-500/30 via-sky-400/15 to-transparent",
-          chip: "bg-gradient-to-br from-cyan-200 via-sky-300 to-indigo-500 border-cyan-200/80 shadow-[0_0_12px_rgba(6,182,212,0.4)]",
-          chipPads: "border-cyan-900/40",
-          pill: "bg-black/40 border-cyan-400/30 text-cyan-100 hover:border-cyan-400/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]",
-          crownColor: "text-cyan-300 drop-shadow-[0_2px_8px_rgba(6,182,212,0.6)]",
-          coinBg: "from-cyan-300 via-sky-400 to-blue-600 border-cyan-100/80",
-          coinStar: "text-blue-950",
-          giftBox: "bg-cyan-500/15 border-cyan-400/25 text-cyan-200",
-          accentText: "text-cyan-300",
+          wrapper: "bg-gradient-to-br from-[#232326] via-[#18181b] to-[#111113] border-white/15 text-white shadow-[0_20px_45px_-12px_rgba(0,0,0,0.65)]",
+          ambientGlow: "from-cyan-400/[0.10] via-white/[0.04] to-transparent",
+          chip: "bg-gradient-to-br from-[#F7DE7B] via-[#DFB346] to-[#B78520] border-[#FFE89C]/60",
+          crownColor: "text-[#E6C367]",
+          vipText: "text-[#E6C367]",
+          unitText: "text-[#E6C367]",
+          tierColor: "text-white/95",
           progressColor: "bg-gradient-to-r from-cyan-400 to-indigo-400",
+          checkinWrapper: "bg-gradient-to-r from-cyan-500/[0.08] via-sky-500/[0.05] to-indigo-500/[0.06] border-cyan-500/20 dark:border-cyan-400/20",
+          checkinIcon: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-300",
+          checkinBtn: "bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-500 hover:to-sky-500 text-white shadow-sm shadow-cyan-500/20",
+          checkinPill: "bg-cyan-500/12 text-cyan-700 dark:text-cyan-300 border-cyan-500/20",
         };
       case "gold":
         return {
-          wrapper: "bg-gradient-to-br from-[#713f12] via-[#451a03] to-[#1c0f06] border-yellow-400/45 text-yellow-50 shadow-[0_16px_40px_rgba(234,179,8,0.25)]",
-          glow: "from-yellow-400/35 via-amber-400/20 to-transparent",
-          chip: "bg-gradient-to-br from-yellow-200 via-amber-300 to-amber-500 border-yellow-100/90 shadow-[0_0_12px_rgba(245,158,11,0.4)]",
-          chipPads: "border-amber-900/40",
-          pill: "bg-black/40 border-yellow-400/30 text-yellow-100 hover:border-yellow-400/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]",
-          crownColor: "text-yellow-300 drop-shadow-[0_2px_8px_rgba(234,179,8,0.6)]",
-          coinBg: "from-yellow-200 via-amber-400 to-amber-600 border-yellow-100/90",
-          coinStar: "text-amber-950",
-          giftBox: "bg-yellow-500/15 border-yellow-400/25 text-yellow-200",
-          accentText: "text-yellow-300",
+          wrapper: "bg-gradient-to-br from-[#423214] via-[#2b200c] to-[#1a1307] border-amber-300/25 text-white shadow-[0_20px_45px_-12px_rgba(120,83,12,0.5)]",
+          ambientGlow: "from-amber-300/[0.16] via-yellow-500/[0.05] to-transparent",
+          chip: "bg-gradient-to-br from-[#F7DE7B] via-[#DFB346] to-[#B78520] border-[#FFE89C]/65",
+          crownColor: "text-[#F4D77B]",
+          vipText: "text-[#F4D77B]",
+          unitText: "text-[#F4D77B]",
+          tierColor: "text-amber-100",
           progressColor: "bg-gradient-to-r from-yellow-300 to-amber-400",
+          checkinWrapper: "bg-gradient-to-r from-amber-500/[0.09] via-yellow-500/[0.06] to-orange-500/[0.05] border-amber-500/25",
+          checkinIcon: "bg-amber-500/15 text-amber-600 dark:text-amber-300",
+          checkinBtn: "bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white shadow-sm shadow-amber-500/20",
+          checkinPill: "bg-amber-500/12 text-amber-700 dark:text-amber-300 border-amber-500/25",
         };
       case "silver":
         return {
-          wrapper: "bg-gradient-to-br from-[#334155] via-[#1e293b] to-[#0f172a] border-slate-300/45 text-slate-50 shadow-[0_16px_40px_rgba(148,163,184,0.25)]",
-          glow: "from-slate-300/25 via-sky-200/15 to-transparent",
-          chip: "bg-gradient-to-br from-slate-100 via-slate-300 to-slate-400 border-white/80 shadow-[0_0_12px_rgba(255,255,255,0.3)]",
-          chipPads: "border-slate-800/40",
-          pill: "bg-black/40 border-slate-300/30 text-slate-100 hover:border-slate-300/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]",
-          crownColor: "text-slate-200 drop-shadow-[0_2px_8px_rgba(255,255,255,0.5)]",
-          coinBg: "from-slate-100 via-slate-300 to-slate-500 border-white/90",
-          coinStar: "text-slate-900",
-          giftBox: "bg-slate-400/15 border-slate-300/25 text-slate-200",
-          accentText: "text-slate-200",
+          wrapper: "bg-gradient-to-br from-[#475263] via-[#2c3440] to-[#191e26] border-slate-200/30 text-white shadow-[0_20px_45px_-12px_rgba(30,41,59,0.5)]",
+          ambientGlow: "from-white/[0.15] via-slate-300/[0.05] to-transparent",
+          chip: "bg-gradient-to-br from-slate-100 via-slate-300 to-slate-400 border-white/65",
+          crownColor: "text-slate-100",
+          vipText: "text-slate-200",
+          unitText: "text-slate-200",
+          tierColor: "text-slate-100",
           progressColor: "bg-gradient-to-r from-slate-300 to-slate-500",
+          checkinWrapper: "bg-gradient-to-r from-slate-500/[0.09] via-slate-400/[0.06] to-indigo-500/[0.05] border-slate-400/25",
+          checkinIcon: "bg-slate-500/15 text-slate-600 dark:text-slate-300",
+          checkinBtn: "bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 text-white shadow-sm shadow-slate-500/20",
+          checkinPill: "bg-slate-500/12 text-slate-700 dark:text-slate-300 border-slate-400/25",
         };
       case "bronze":
       default:
         return {
-          wrapper: "bg-gradient-to-br from-[#622a0f] via-[#3a1807] to-[#180a03] border-amber-500/40 text-amber-50 shadow-[0_16px_40px_rgba(180,83,9,0.3)]",
-          glow: "from-amber-500/35 via-orange-500/20 to-transparent",
-          chip: "bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 border-amber-100/90 shadow-[0_0_12px_rgba(217,119,6,0.4)]",
-          chipPads: "border-amber-950/40",
-          pill: "bg-black/45 border-amber-400/35 text-amber-100 hover:border-amber-400/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.25)]",
-          crownColor: "text-amber-300 drop-shadow-[0_2px_8px_rgba(245,158,11,0.6)]",
-          coinBg: "from-amber-200 via-amber-400 to-amber-600 border-amber-100/90",
-          coinStar: "text-amber-950",
-          giftBox: "bg-amber-500/15 border-amber-400/25 text-amber-200",
-          accentText: "text-amber-200",
+          wrapper: "bg-gradient-to-br from-[#4a2816] via-[#311a0e] to-[#1c0e07] border-amber-600/25 text-white shadow-[0_20px_45px_-12px_rgba(120,53,15,0.45)]",
+          ambientGlow: "from-orange-400/[0.14] via-amber-500/[0.05] to-transparent",
+          chip: "bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 border-amber-100/60",
+          crownColor: "text-[#F0AE78]",
+          vipText: "text-[#F0AE78]",
+          unitText: "text-[#F0AE78]",
+          tierColor: "text-amber-100",
           progressColor: "bg-gradient-to-r from-amber-500 to-orange-400",
+          checkinWrapper: "bg-gradient-to-r from-orange-500/[0.08] via-amber-700/[0.06] to-amber-500/[0.05] border-amber-700/25",
+          checkinIcon: "bg-amber-700/15 text-amber-700 dark:text-amber-400",
+          checkinBtn: "bg-gradient-to-r from-amber-700 to-orange-600 hover:from-amber-600 hover:to-orange-500 text-white shadow-sm shadow-amber-700/20",
+          checkinPill: "bg-amber-700/12 text-amber-800 dark:text-amber-300 border-amber-700/25",
         };
+    }
+  };
+
+  const renderTierWireframeIcon = () => {
+    switch (tier) {
+      case "diamond":
+        return (
+          <svg
+            className="w-4 h-4 sm:w-[18px] sm:h-[18px] shrink-0"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M6 4h12l4 6-10 11L2 10l4-6z" />
+            <path d="M2 10h20" />
+            <path d="M12 21L8 10l4-6 4 6-4 11z" />
+          </svg>
+        );
+      case "gold":
+        return (
+          <svg
+            className="w-4 h-4 sm:w-[18px] sm:h-[18px] shrink-0"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="9" r="6" />
+            <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
+          </svg>
+        );
+      case "silver":
+        return (
+          <svg
+            className="w-4 h-4 sm:w-[18px] sm:h-[18px] shrink-0"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z" />
+          </svg>
+        );
+      case "bronze":
+      default:
+        return (
+          <svg
+            className="w-4 h-4 sm:w-[18px] sm:h-[18px] shrink-0"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+        );
     }
   };
 
@@ -264,196 +357,143 @@ export function MembershipCard({
 
   return (
     <div className="space-y-4">
-      {/* Thẻ VIP Digital Siêu Bóng Bẩy (Glassmorphic Luxury Card) */}
+      {/* Thẻ VIP Digital Kim Loại Đen Tối Giản (Matte Metal Luxury Card) */}
       <div
         className={cn(
-          "relative overflow-hidden rounded-[28px] border p-6 sm:p-7 transition-all duration-300 select-none group shadow-[inset_0_1px_2px_rgba(255,255,255,0.4)]",
+          "relative overflow-hidden rounded-[22px] border p-6 sm:p-7 transition-all duration-300 select-none shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]",
           theme.wrapper
         )}
       >
-        {/* Lớp phản chiếu ánh sáng thủy tinh (Glossy Glass Reflection) */}
-        <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-yellow/10 to-transparent pointer-events-none rounded-[28px]" />
-        <div className="absolute -top-32 -left-20 w-80 h-80 bg-black/10 rounded-full blur-3xl pointer-events-none transform -rotate-12" />
-
-        {/* Glow ambient background */}
+        {/* Hiệu ứng phản chiếu ánh sáng chéo trên bề mặt kim loại mờ */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(52deg, transparent 47%, rgba(255,255,255,0.065) 47.4%, rgba(255,255,255,0.015) 68%, transparent 100%)",
+          }}
+        />
         <div
           className={cn(
-            "absolute -right-20 -top-20 w-72 h-72 rounded-full blur-3xl opacity-75 pointer-events-none bg-gradient-to-br",
-            theme.glow
+            "absolute -right-24 -top-24 w-72 h-72 rounded-full blur-3xl pointer-events-none bg-gradient-to-br",
+            theme.ambientGlow
           )}
         />
 
-        {/* Vân sáng gợn sóng nghệ thuật (Silky Wave Lines) */}
-        <svg
-          className="absolute inset-0 w-full h-full pointer-events-none opacity-40 mix-blend-screen"
-          preserveAspectRatio="none"
-          viewBox="0 0 500 300"
-        >
-          <path
-            d="M -50 180 Q 150 100 280 180 T 550 120 L 550 350 L -50 350 Z"
-            fill="url(#card-wave-glow)"
-          />
-          <defs>
-            <linearGradient id="card-wave-glow" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="rgba(255,255,255,0.02)" />
-              <stop offset="50%" stopColor="rgba(255,215,160,0.22)" />
-              <stop offset="100%" stopColor="rgba(255,255,255,0.01)" />
-            </linearGradient>
-          </defs>
-        </svg>
-
-        {/* Watermark vương miện chìm khổng lồ bên phải */}
-        <svg
-          className="absolute -right-6 -bottom-10 w-48 h-48 text-white/[0.06] pointer-events-none transform rotate-[-8deg]"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-        >
-          <path d="M5 16L3 5L8.5 10L12 4L15.5 10L21 5L19 16H5ZM5 18H19V20H5V18Z" />
-        </svg>
-
-        {/* Header Thẻ: Logo Vương Miện & Pill Hạng VIP */}
-        <div className="relative z-10 flex items-start justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            {/* Biểu tượng Vương Miện */}
+        {/* Header Thẻ: Logo Vương Miện & Hạng Thành Viên */}
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Vương miện 3 đỉnh tối giản */}
             <svg
-              className={cn("w-7 h-7 sm:w-8 sm:h-8 shrink-0", theme.crownColor)}
+              className={cn("w-6 h-6 sm:w-7 sm:h-7 shrink-0", theme.crownColor)}
               viewBox="0 0 24 24"
               fill="currentColor"
             >
-              <path d="M5 16L3 5L8.5 10L12 4L15.5 10L21 5L19 16H5ZM5 18H19V20H5V18Z" />
+              <path d="M3 16.5L2 6.5L7.5 11.5L12 4.5L16.5 11.5L22 6.5L21 16.5H3Z" />
+              <rect x="3" y="18.5" width="18" height="2.2" rx="1" />
             </svg>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs sm:text-[13px] font-black tracking-[0.2em] uppercase text-white drop-shadow-sm">
-                  LUXE VIP CLUB
-                </span>
-                <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-amber-400 text-amber-950 font-black text-[9px] shadow-xs">
-                  ✓
-                </span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-sm sm:text-base font-bold tracking-[0.14em] uppercase leading-tight truncate">
+                <span className="text-white">LUXE</span>
+                <span className={theme.vipText}>VIP CLUB</span>
               </div>
-              <p className="text-[9.5px] font-mono tracking-[0.25em] text-white/70 uppercase">
+              <p className="text-[9.5px] sm:text-[10px] tracking-[0.22em] text-white/45 font-medium uppercase mt-0.5">
                 MEMBERSHIP CARD
               </p>
             </div>
           </div>
 
-          {/* Nút Pill Hạng VIP bo tròn sang trọng */}
-          <Link
-            href="/account/coins"
-            className={cn(
-              "px-3 py-1.5 rounded-full border text-xs font-bold uppercase tracking-wide flex items-center gap-1.5 transition-all duration-200 cursor-pointer shadow-xs hover:scale-105 active:scale-95",
-              theme.pill
-            )}
-          >
-            <Image
-              src={TIER_ICON_MAP[tier] || "/icons/bronze.png"}
-              alt={`Hạng ${tierConfig.name}`}
-              width={16}
-              height={16}
-              unoptimized
-              className="object-contain shrink-0"
-            />
-            <span className="font-extrabold text-[11px] sm:text-xs">Hạng {tierConfig.name}</span>
-            <ChevronRight className="w-3.5 h-3.5 opacity-70 ml-0.5" />
-          </Link>
+          {/* Vách ngăn dọc & Tên Hạng VIP */}
+          <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+            <div className="hidden sm:block w-[1px] h-6 bg-white/15" />
+            <Link
+              href="/account/coins"
+              className={cn(
+                "flex items-center gap-2 text-[11px] sm:text-xs font-semibold tracking-[0.12em] uppercase transition-opacity hover:opacity-80",
+                theme.tierColor
+              )}
+            >
+              {renderTierWireframeIcon()}
+              <span>Hạng {tierConfig.name}</span>
+            </Link>
+          </div>
         </div>
 
-        {/* EMV Chip Kim Loại & Sóng Không Chạm NFC */}
-        <div className="relative z-10 my-4 sm:my-5 flex items-center justify-between">
-          {/* Chip 6 mạch kim loại viền nổi */}
+        {/* Chip Kim Loại EMV & Biểu Tượng Sóng NFC */}
+        <div className="relative z-10 my-6 sm:my-7 flex items-center justify-between">
           <div
             className={cn(
-              "w-12 h-9 sm:w-13 sm:h-9.5 rounded-xl border p-1 relative overflow-hidden shadow-md",
+              "w-11 h-8 sm:w-12 sm:h-9 rounded-[7px] relative overflow-hidden shadow-[0_2px_6px_rgba(0,0,0,0.45),inset_0_1px_1px_rgba(255,255,255,0.6)] border",
               theme.chip
             )}
           >
-            <div className={cn("w-full h-full rounded-md border grid grid-cols-3 grid-rows-2 gap-[2px]", theme.chipPads)}>
-              <div className="border-r border-b border-black/20 rounded-tl-sm" />
-              <div className="border-r border-b border-black/20" />
-              <div className="border-b border-black/20 rounded-tr-sm" />
-              <div className="border-r border-black/20 rounded-bl-sm" />
-              <div className="border-r border-black/20" />
-              <div className="rounded-br-sm" />
-            </div>
-          </div>
-
-          {/* Biểu tượng sóng không chạm NFC */}
-          <div className="opacity-75 flex items-center">
-            <svg className="w-5 h-6 text-white drop-shadow-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <path d="M12 6c3.3 3.3 3.3 8.7 0 12" />
-              <path d="M15.5 3.5c4.7 4.7 4.7 12.3 0 17" />
-              <path d="M19 1c6.1 6.1 6.1 15.9 0 22" />
+            <svg className="w-full h-full" viewBox="0 0 48 36" fill="none">
+              <path d="M0 12H15M0 24H15M33 12H48M33 24H48M24 0V8M24 28V36" stroke="rgba(0,0,0,0.28)" strokeWidth="1.3" />
+              <rect x="15" y="8" width="18" height="20" rx="5" stroke="rgba(0,0,0,0.32)" strokeWidth="1.3" />
+              <rect x="20" y="13" width="8" height="10" rx="4" stroke="rgba(0,0,0,0.22)" strokeWidth="1.1" />
             </svg>
           </div>
+
+          <svg
+            className="w-5 h-5 sm:w-6 sm:h-6 text-white/80 shrink-0"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+          >
+            <path d="M6.5 9.5a4.5 4.5 0 0 1 0 5" />
+            <path d="M10 7a8 8 0 0 1 0 10" />
+            <path d="M13.5 4.5a11.5 11.5 0 0 1 0 15" />
+          </svg>
         </div>
 
-        {/* Khối Kính Nổi Trưng Bày Xu & Điểm (Floating Glass Capsule Dock) */}
-        <div className="relative z-10 my-4 sm:my-5 rounded-2xl bg-black/30 backdrop-blur-md border border-white/15 p-3.5 sm:p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2),0_8px_24px_rgba(0,0,0,0.25)] flex items-center justify-between">
-          {/* Cột trái: Xu khả dụng */}
-          <div className="flex items-center gap-3 min-w-0">
-            {/* Đồng xu vàng 3D đính ngôi sao */}
-            <div
-              className={cn(
-                "w-11 h-11 sm:w-12 sm:h-12 rounded-full p-[2px] shadow-md flex items-center justify-center shrink-0 border bg-gradient-to-b",
-                theme.coinBg
-              )}
-            >
-              <div className="w-full h-full rounded-full border border-black/15 bg-gradient-to-b from-white/20 to-black/10 flex items-center justify-center">
-                <svg className={cn("w-5 h-5 fill-current drop-shadow-xs", theme.coinStar)} viewBox="0 0 24 24">
-                  <path d="M12 2l2.4 7.4h7.6l-6.1 4.5 2.3 7.1-6.2-4.5-6.2 4.5 2.3-7.1-6.1-4.5h7.6z" />
-                </svg>
-              </div>
+        {/* Thông số Xu Khả Dụng & Điểm Trọn Đời (2 cột tối giản, thoáng) */}
+        <div className="relative z-10 my-5 sm:my-6 grid grid-cols-[1fr_auto_1fr] items-start gap-4 sm:gap-7">
+          {/* Cột Trái: Xu Khả Dụng */}
+          <div className="min-w-0">
+            <p className="text-[10px] sm:text-[11px] uppercase font-medium tracking-[0.12em] text-white/55 mb-1.5">
+              Xu khả dụng
+            </p>
+            <div className="flex items-baseline gap-1.5 flex-wrap">
+              <span className="text-xl sm:text-[28px] font-bold tracking-tight text-white tabular-nums leading-none">
+                {coinsBalance.toLocaleString("vi-VN")}
+              </span>
+              <span className={cn("text-sm sm:text-base font-bold", theme.unitText)}>Xu</span>
             </div>
-
-            <div className="min-w-0 space-y-0.5">
-              <p className="text-[9.5px] uppercase font-bold tracking-widest text-white/70 truncate">
-                Xu khả dụng để tiêu
-              </p>
-              <div className="flex items-baseline gap-1.5 flex-wrap">
-                <span className="text-xl sm:text-2xl font-black tracking-tight text-white drop-shadow-sm">
-                  {coinsBalance.toLocaleString("vi-VN")}
-                </span>
-                <span className="text-xs sm:text-sm font-bold text-amber-200">Xu</span>
-                <span className="text-[11px] text-white/60 font-mono">
-                  (≈ {coinsBalance.toLocaleString("vi-VN")}đ)
-                </span>
-              </div>
-            </div>
+            <p className="text-[11px] sm:text-xs text-white/45 font-medium mt-1.5 tabular-nums">
+              (≈ {coinsBalance.toLocaleString("vi-VN")}đ)
+            </p>
           </div>
 
-          {/* Vách ngăn mờ ở giữa */}
-          <div className="w-[1px] h-9 bg-white/15 mx-2.5 sm:mx-4 shrink-0" />
+          {/* Vách ngăn dọc mảnh */}
+          <div className="w-[1px] h-12 sm:h-14 bg-white/15 self-center" />
 
-          {/* Cột phải: Điểm trọn đời */}
-          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-            <div className={cn("w-10 h-10 sm:w-11 sm:h-11 rounded-xl border flex items-center justify-center shrink-0 shadow-inner", theme.giftBox)}>
-              <Gift className="w-5 h-5" />
-            </div>
-
-            <div className="space-y-0.5">
-              <p className="text-[9.5px] uppercase font-bold tracking-widest text-white/70">
-                Điểm trọn đời
-              </p>
-              <p className="text-base sm:text-lg font-black tracking-tight text-white drop-shadow-sm">
-                {lifetimeCoins.toLocaleString("vi-VN")}{" "}
-                <span className="text-xs font-semibold text-white/80 font-mono">pts</span>
-              </p>
+          {/* Cột Phải: Điểm Trọn Đời */}
+          <div className="min-w-0">
+            <p className="text-[10px] sm:text-[11px] uppercase font-medium tracking-[0.12em] text-white/55 mb-1.5">
+              Điểm trọn đời
+            </p>
+            <div className="flex items-baseline gap-1.5 flex-wrap">
+              <span className="text-xl sm:text-[28px] font-bold tracking-tight text-white tabular-nums leading-none">
+                {lifetimeCoins.toLocaleString("vi-VN")}
+              </span>
+              <span className="text-sm sm:text-base font-medium text-white/55">pts</span>
             </div>
           </div>
         </div>
 
-        {/* Thông tin chủ thẻ & Mã thành viên */}
-        <div className="relative z-10 pt-1 flex items-end justify-between gap-2">
-          <div>
-            <p className="text-[9.5px] uppercase tracking-widest text-white/60 font-bold mb-0.5">
+        {/* Footer Thẻ: Chủ Thẻ & Mã Thành Viên */}
+        <div className="relative z-10 pt-2 flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[9.5px] sm:text-[10px] uppercase tracking-[0.14em] text-white/45 font-medium mb-1">
               Chủ thẻ
             </p>
-            <p className="text-xs sm:text-sm font-black uppercase tracking-wider text-white drop-shadow-sm truncate max-w-[200px] sm:max-w-[280px]">
+            <p className="text-xs sm:text-[15px] font-bold uppercase tracking-[0.08em] text-white truncate max-w-[200px] sm:max-w-[300px]">
               {profile?.full_name || user?.email?.split("@")[0] || "QUÝ KHÁCH"}
             </p>
           </div>
 
-          <div className="text-right font-mono text-[11px] sm:text-xs tracking-widest text-white/75 font-semibold">
+          <div className="text-right font-mono text-[11px] sm:text-xs tracking-[0.12em] text-white/45 font-medium shrink-0">
             #LUXE-{user?.id ? user.id.slice(0, 8).toUpperCase() : "MEMBER"}
           </div>
         </div>
@@ -556,22 +596,31 @@ export function MembershipCard({
         </div>
       )}
 
-      {/* Nút điểm danh nhận xu hôm nay (nếu bật) */}
+      {/* Nút điểm danh nhận xu hôm nay thích ứng theo hạng (nếu bật) */}
       {showCheckinButton && (
-        <div className="bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-orange-500/10 border border-amber-500/25 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-inner">
-              <Gift className="w-5 h-5 " />
+        <div
+          className={cn(
+            "backdrop-blur-xl border rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm transition-colors",
+            theme.checkinWrapper
+          )}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-inner", theme.checkinIcon)}>
+              <Gift className="w-5 h-5" />
             </div>
-            <div>
-              <h4 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5">
-                <span>Điểm danh nhận xu hằng ngày</span>
-                
-              </h4>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="text-xs sm:text-sm font-bold text-foreground">
+                  Điểm danh nhận xu hằng ngày
+                </h4>
+                <span className={cn("text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border", theme.checkinPill)}>
+                  Hạng {tierConfig.name}
+                </span>
+              </div>
               <p className="text-[11px] text-muted-foreground mt-0.5">
                 {isCheckedInToday
-                  ? "Bạn đã điểm danh thành công hôm nay! Hãy quay lại vào ngày mai nhé."
-                  : "Mỗi ngày đăng nhập nhận ngay xu thưởng thăng hạng thành viên."}
+                  ? `Bạn đã nhận +${tierConfig.dailyReward} Xu hôm nay! Hãy quay lại vào ngày mai nhé.`
+                  : `Nhận ngay +${tierConfig.dailyReward} Xu mỗi ngày dành riêng cho thành viên hạng ${tierConfig.name}.`}
               </p>
             </div>
           </div>
@@ -584,8 +633,8 @@ export function MembershipCard({
             className={cn(
               "rounded-xl font-bold text-xs h-9 px-5 shrink-0 transition-all",
               isCheckedInToday
-                ? "bg-emerald-600/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 hover:bg-emerald-600/20 cursor-default"
-                : "bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white shadow-md shadow-amber-500/25 active:scale-95 cursor-pointer"
+                ? "bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 hover:bg-emerald-600/15 cursor-default"
+                : cn(theme.checkinBtn, "active:scale-95 cursor-pointer")
             )}
           >
             {isClaiming ? (
@@ -596,7 +645,7 @@ export function MembershipCard({
               </span>
             ) : (
               <span className="flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5" /> Điểm danh (+{tierConfig.dailyReward}🪙)
+                <Sparkles className="w-3.5 h-3.5" /> Điểm danh (+{tierConfig.dailyReward} Xu)
               </span>
             )}
           </Button>
