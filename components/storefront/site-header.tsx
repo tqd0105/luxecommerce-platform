@@ -35,7 +35,26 @@ import { getGuestCartItems } from "@/lib/services/cart.service";
 import { TIER_CONFIGS, MembershipTier } from "@/lib/services/loyalty.service";
 
 /**
- * Trả về toàn bộ phong cách thị giác (màu sắc, viền, hiệu ứng hào quang, thẻ VIP)
+ * Hệ thống bề mặt Glassmorphism tái sử dụng cho Header (Light & Dark mode)
+ * Tạo chiều sâu đa tầng (Frosted Glass), viền phản chiếu ánh sáng mảnh và shadow mềm chuẩn SaaS.
+ */
+const GLASS_SURFACES = {
+  // Vỏ Dropdown / Sheet: kính mờ độ bão hòa cao, viền sáng mảnh
+  overlay:
+    "bg-white/80 dark:bg-zinc-950/80 backdrop-blur-2xl backdrop-saturate-150 shadow-[0_24px_56px_-12px_rgba(15,23,42,0.16),inset_0_1px_0_0_rgba(255,255,255,0.65)] dark:shadow-[0_24px_60px_-12px_rgba(0,0,0,0.65),inset_0_1px_0_0_rgba(255,255,255,0.1)]",
+  // Thẻ VIP bên trong: kính bán trong suốt đa lớp nằm trên nền ambient gradient mềm
+  vipCard:
+    "relative overflow-hidden rounded-[18px] border bg-white/65 dark:bg-white/[0.05] backdrop-blur-md shadow-[0_8px_24px_-6px_rgba(15,23,42,0.08),inset_0_1px_0_0_rgba(255,255,255,0.75)] dark:shadow-[0_12px_32px_-8px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.14)] transition-all duration-300",
+  // Lớp kính cấp 2 cho dải quyền lợi bên trong thẻ
+  innerStrip:
+    "bg-white/55 dark:bg-white/[0.05] border border-slate-900/[0.06] dark:border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.5)] dark:shadow-none",
+  // Rãnh thanh tiến trình
+  progressTrack:
+    "bg-slate-900/[0.08] dark:bg-white/[0.1]",
+} as const;
+
+/**
+ * Trả về toàn bộ phong cách thị giác Glassmorphism tinh tế (ánh sáng môi trường, viền mảnh, sắc độ chữ)
  * tương ứng với từng Hạng thành viên (Đồng, Bạc, Vàng, Kim Cương) và Quyền (Admin, Staff)
  */
 function getTierTheme(tier: MembershipTier, role: string | null) {
@@ -45,25 +64,24 @@ function getTierTheme(tier: MembershipTier, role: string | null) {
       tagline: "SYSTEM ADMINISTRATOR",
       icon: "👑",
       iconImg: "/icons/admin.png",
-      triggerRing: "ring-2 ring-rose-500/90 hover:ring-rose-400",
-      triggerGlow: "shadow-[0_0_14px_rgba(244,63,94,0.45)] hover:shadow-[0_0_22px_rgba(244,63,94,0.7)]",
-      triggerBadgeBg: "bg-gray-100 text-rose-300 border-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]",
-      dropdownBorder: "border-rose-500/35",
-      dropdownGlow: "shadow-[0_20px_60px_rgba(244,63,94,0.18)]",
-      cardBg: "bg-gradient-to-br from-[#290812] via-[#3d0d1b] to-[#1a050b] text-white",
-      cardBorder: "border-rose-500/40",
-      cardGlow: "shadow-[0_8px_24px_rgba(244,63,94,0.25),inset_0_1px_1px_rgba(255,255,255,0.2)]",
-      cardShine: "bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-rose-500/30 via-pink-500/10 to-transparent",
-      badgeBg: "bg-rose-500/25 text-rose-200 border-rose-400/50 shadow-[0_0_10px_rgba(244,63,94,0.3)]",
+      triggerRing: "ring-[1.5px] ring-rose-500/60 hover:ring-rose-500 dark:ring-rose-400/60",
+      triggerGlow: "shadow-sm hover:shadow-md",
+      triggerBadgeBg: "bg-white/95 dark:bg-zinc-900/95 text-rose-600 dark:text-rose-300 border-rose-500/40 shadow-sm",
+      dropdownBorder: "border-slate-200/80 dark:border-white/12",
+      dropdownGlow: "",
+      cardBorder: "border-rose-500/20 dark:border-rose-400/20",
+      cardTint: "bg-gradient-to-br from-rose-500/[0.06] via-transparent to-amber-500/[0.04]",
+      ambientPrimary: "bg-rose-400/25 dark:bg-rose-500/20",
+      ambientSecondary: "bg-amber-300/20 dark:bg-pink-500/15",
+      badgeBg: "bg-rose-500/10 text-rose-700 border-rose-500/20 dark:bg-rose-400/15 dark:text-rose-200 dark:border-rose-400/25",
       privilegeText: "Toàn quyền Quản trị & Điều hành Hệ thống",
-      privilegePill: "bg-rose-950/70 border-rose-500/30 text-rose-200",
+      privilegeTextColor: "text-slate-700 dark:text-zinc-200",
       progressBg: "bg-gradient-to-r from-rose-500 to-amber-500",
-      progressTrack: "bg-rose-950/60",
-      accentColor: "text-rose-400",
-      coinBadgeBg: "bg-rose-500/15",
-      coinBadgeText: "text-rose-700 dark:text-rose-400",
-      coinBadgeBorder: "border-rose-500/25",
-      coinHover: "hover:bg-rose-500/10 focus:bg-rose-500/10 group-hover:text-rose-600 dark:group-hover:text-rose-400",
+      accentColor: "text-rose-600 dark:text-rose-400",
+      coinBadgeBg: "bg-rose-500/10",
+      coinBadgeText: "text-rose-700 dark:text-rose-300",
+      coinBadgeBorder: "border-rose-500/20",
+      coinHover: "hover:bg-rose-500/[0.08] focus:bg-rose-500/[0.08] group-hover:text-rose-600 dark:group-hover:text-rose-400",
     };
   }
 
@@ -73,25 +91,24 @@ function getTierTheme(tier: MembershipTier, role: string | null) {
       tagline: "STAFF OPERATOR",
       icon: "🛡️",
       iconImg: "/icons/staff.png",
-      triggerRing: "ring-2 ring-blue-500/90 hover:ring-blue-400",
-      triggerGlow: "shadow-[0_0_14px_rgba(59,130,246,0.45)] hover:shadow-[0_0_22px_rgba(59,130,246,0.7)]",
-      triggerBadgeBg: "bg-gray-100 text-blue-300 border-blue-500/80 shadow-[0_0_8px_rgba(59,130,246,0.5)]",
-      dropdownBorder: "border-blue-500/35",
-      dropdownGlow: "shadow-[0_20px_60px_rgba(59,130,246,0.18)]",
-      cardBg: "bg-gradient-to-br from-[#0a162b] via-[#0f2547] to-[#060f1e] text-white",
-      cardBorder: "border-blue-500/40",
-      cardGlow: "shadow-[0_8px_24px_rgba(59,130,246,0.25),inset_0_1px_1px_rgba(255,255,255,0.2)]",
-      cardShine: "bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-500/30 via-indigo-500/10 to-transparent",
-      badgeBg: "bg-blue-500/25 text-blue-200 border-blue-400/50 shadow-[0_0_10px_rgba(59,130,246,0.3)]",
+      triggerRing: "ring-[1.5px] ring-blue-500/60 hover:ring-blue-500 dark:ring-blue-400/60",
+      triggerGlow: "shadow-sm hover:shadow-md",
+      triggerBadgeBg: "bg-white/95 dark:bg-zinc-900/95 text-blue-600 dark:text-blue-300 border-blue-500/40 shadow-sm",
+      dropdownBorder: "border-slate-200/80 dark:border-white/12",
+      dropdownGlow: "",
+      cardBorder: "border-blue-500/20 dark:border-blue-400/20",
+      cardTint: "bg-gradient-to-br from-blue-500/[0.06] via-transparent to-indigo-500/[0.04]",
+      ambientPrimary: "bg-blue-400/25 dark:bg-blue-500/20",
+      ambientSecondary: "bg-indigo-300/20 dark:bg-indigo-500/15",
+      badgeBg: "bg-blue-500/10 text-blue-700 border-blue-500/20 dark:bg-blue-400/15 dark:text-blue-200 dark:border-blue-400/25",
       privilegeText: "Xử lý Đơn hàng & Hỗ trợ Khách hàng",
-      privilegePill: "bg-blue-950/70 border-blue-500/30 text-blue-200",
+      privilegeTextColor: "text-slate-700 dark:text-zinc-200",
       progressBg: "bg-gradient-to-r from-blue-500 to-indigo-500",
-      progressTrack: "bg-blue-950/60",
-      accentColor: "text-blue-400",
-      coinBadgeBg: "bg-blue-500/15",
-      coinBadgeText: "text-blue-700 dark:text-blue-400",
-      coinBadgeBorder: "border-blue-500/25",
-      coinHover: "hover:bg-blue-500/10 focus:bg-blue-500/10 group-hover:text-blue-600 dark:group-hover:text-blue-400",
+      accentColor: "text-blue-600 dark:text-blue-400",
+      coinBadgeBg: "bg-blue-500/10",
+      coinBadgeText: "text-blue-700 dark:text-blue-300",
+      coinBadgeBorder: "border-blue-500/20",
+      coinHover: "hover:bg-blue-500/[0.08] focus:bg-blue-500/[0.08] group-hover:text-blue-600 dark:group-hover:text-blue-400",
     };
   }
 
@@ -102,25 +119,24 @@ function getTierTheme(tier: MembershipTier, role: string | null) {
         tagline: "SUPREME PRESTIGE VIP",
         icon: "💎",
         iconImg: "/icons/diamond.png",
-        triggerRing: "ring-2 ring-cyan-400 hover:ring-cyan-300",
-        triggerGlow: "shadow-[0_0_14px_rgba(6,182,212,0.5)] hover:shadow-[0_0_22px_rgba(6,182,212,0.8)]",
-        triggerBadgeBg: "bg-gray-100 text-cyan-200 border-cyan-400/80 shadow-[0_0_8px_rgba(6,182,212,0.6)]",
-        dropdownBorder: "border-cyan-500/35",
-        dropdownGlow: "shadow-[0_20px_60px_rgba(6,182,212,0.2)]",
-        cardBg: "bg-gradient-to-br from-[#061427] via-[#0c2445] to-[#041529] text-white",
-        cardBorder: "border-cyan-400/40",
-        cardGlow: "shadow-[0_8px_24px_rgba(6,182,212,0.28),inset_0_1px_1px_rgba(255,255,255,0.25)]",
-        cardShine: "bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-cyan-400/30 via-sky-500/10 to-transparent",
-        badgeBg: "bg-gradient-to-r from-cyan-500/25 to-blue-500/20 text-cyan-200 border-cyan-400/60 shadow-[0_0_12px_rgba(6,182,212,0.45)]",
-        privilegeText: " Tích 3% Xu • Freeship toàn quốc mọi đơn",
-        privilegePill: "bg-cyan-950/70 border-cyan-400/30 text-cyan-200",
-        progressBg: "bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-300",
-        progressTrack: "bg-cyan-950/70",
-        accentColor: "text-cyan-400",
-        coinBadgeBg: "bg-cyan-500/15",
+        triggerRing: "ring-[1.5px] ring-cyan-500/60 hover:ring-cyan-500 dark:ring-cyan-400/60",
+        triggerGlow: "shadow-sm hover:shadow-md",
+        triggerBadgeBg: "bg-white/95 dark:bg-zinc-900/95 text-cyan-600 dark:text-cyan-300 border-cyan-500/40 shadow-sm",
+        dropdownBorder: "border-slate-200/80 dark:border-white/12",
+        dropdownGlow: "",
+        cardBorder: "border-cyan-500/20 dark:border-cyan-400/20",
+        cardTint: "bg-gradient-to-br from-cyan-500/[0.07] via-transparent to-sky-500/[0.04]",
+        ambientPrimary: "bg-cyan-400/25 dark:bg-cyan-400/20",
+        ambientSecondary: "bg-sky-300/20 dark:bg-indigo-500/15",
+        badgeBg: "bg-cyan-500/10 text-cyan-800 border-cyan-500/20 dark:bg-cyan-400/15 dark:text-cyan-200 dark:border-cyan-400/25",
+        privilegeText: "Tích 3% Xu • Freeship toàn quốc mọi đơn",
+        privilegeTextColor: "text-slate-700 dark:text-zinc-200",
+        progressBg: "bg-gradient-to-r from-cyan-500 to-sky-400",
+        accentColor: "text-cyan-600 dark:text-cyan-400",
+        coinBadgeBg: "bg-cyan-500/10",
         coinBadgeText: "text-cyan-700 dark:text-cyan-300",
-        coinBadgeBorder: "border-cyan-500/30",
-        coinHover: "hover:bg-cyan-500/10 focus:bg-cyan-500/10 group-hover:text-cyan-600 dark:group-hover:text-cyan-400",
+        coinBadgeBorder: "border-cyan-500/20",
+        coinHover: "hover:bg-cyan-500/[0.08] focus:bg-cyan-500/[0.08] group-hover:text-cyan-600 dark:group-hover:text-cyan-400",
       };
 
     case "gold":
@@ -129,25 +145,24 @@ function getTierTheme(tier: MembershipTier, role: string | null) {
         tagline: "ROYAL ELITE VIP",
         icon: "🥇",
         iconImg: "/icons/gold.png",
-        triggerRing: "ring-2 ring-amber-400 hover:ring-amber-300",
-        triggerGlow: "shadow-[0_0_14px_rgba(251,191,36,0.5)] hover:shadow-[0_0_22px_rgba(251,191,36,0.8)]",
-        triggerBadgeBg: "bg-[#281804] text-amber-200 border-amber-400/80 shadow-[0_0_8px_rgba(251,191,36,0.6)]",
-        dropdownBorder: "border-amber-500/35",
-        dropdownGlow: "shadow-[0_20px_60px_rgba(251,191,36,0.18)]",
-        cardBg: "bg-gradient-to-br from-[#261703] via-[#422906] to-[#1c1102] text-white",
-        cardBorder: "border-amber-400/40",
-        cardGlow: "shadow-[0_8px_24px_rgba(251,191,36,0.28),inset_0_1px_1px_rgba(255,255,255,0.25)]",
-        cardShine: "bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-amber-400/30 via-yellow-500/10 to-transparent",
-        badgeBg: "bg-gradient-to-r from-amber-500/25 to-yellow-500/20 text-amber-200 border-amber-400/60 shadow-[0_0_12px_rgba(251,191,36,0.4)]",
-        privilegeText: " Tích 2% Xu • Giảm 50% Phí vận chuyển",
-        privilegePill: "bg-amber-950/70 border-amber-400/30 text-amber-200",
-        progressBg: "bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-200",
-        progressTrack: "bg-amber-950/70",
-        accentColor: "text-amber-400",
-        coinBadgeBg: "bg-amber-500/15",
+        triggerRing: "ring-[1.5px] ring-amber-500/60 hover:ring-amber-500 dark:ring-amber-400/60",
+        triggerGlow: "shadow-sm hover:shadow-md",
+        triggerBadgeBg: "bg-white/95 dark:bg-zinc-900/95 text-amber-600 dark:text-amber-300 border-amber-500/40 shadow-sm",
+        dropdownBorder: "border-slate-200/80 dark:border-white/12",
+        dropdownGlow: "",
+        cardBorder: "border-amber-500/20 dark:border-amber-400/20",
+        cardTint: "bg-gradient-to-br from-amber-500/[0.07] via-transparent to-yellow-500/[0.04]",
+        ambientPrimary: "bg-amber-400/25 dark:bg-amber-400/20",
+        ambientSecondary: "bg-yellow-300/20 dark:bg-orange-400/12",
+        badgeBg: "bg-amber-500/10 text-amber-800 border-amber-500/20 dark:bg-amber-400/15 dark:text-amber-200 dark:border-amber-400/25",
+        privilegeText: "Tích 2% Xu • Giảm 50% Phí vận chuyển",
+        privilegeTextColor: "text-slate-700 dark:text-zinc-200",
+        progressBg: "bg-gradient-to-r from-amber-500 to-yellow-400",
+        accentColor: "text-amber-600 dark:text-amber-400",
+        coinBadgeBg: "bg-amber-500/10",
         coinBadgeText: "text-amber-700 dark:text-amber-300",
-        coinBadgeBorder: "border-amber-500/30",
-        coinHover: "hover:bg-amber-500/10 focus:bg-amber-500/10 group-hover:text-amber-600 dark:group-hover:text-amber-400",
+        coinBadgeBorder: "border-amber-500/20",
+        coinHover: "hover:bg-amber-500/[0.08] focus:bg-amber-500/[0.08] group-hover:text-amber-600 dark:group-hover:text-amber-400",
       };
 
     case "silver":
@@ -156,25 +171,24 @@ function getTierTheme(tier: MembershipTier, role: string | null) {
         tagline: "PREMIUM SILVER MEMBER",
         icon: "🥈",
         iconImg: "/icons/silver.png",
-        triggerRing: "ring-2 ring-slate-300 dark:ring-slate-400 hover:ring-slate-200",
-        triggerGlow: "shadow-[0_0_12px_rgba(148,163,184,0.4)] hover:shadow-[0_0_18px_rgba(148,163,184,0.7)]",
-        triggerBadgeBg: "bg-[#18202d] text-slate-200 border-slate-300/80 shadow-[0_0_8px_rgba(148,163,184,0.45)]",
-        dropdownBorder: "border-slate-400/35",
-        dropdownGlow: "shadow-[0_20px_60px_rgba(148,163,184,0.15)]",
-        cardBg: "bg-gradient-to-br from-[#141b26] via-[#222d3d] to-[#101620] text-white",
-        cardBorder: "border-slate-300/40",
-        cardGlow: "shadow-[0_8px_24px_rgba(148,163,184,0.22),inset_0_1px_1px_rgba(255,255,255,0.2)]",
-        cardShine: "bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-200/25 via-slate-400/10 to-transparent",
-        badgeBg: "bg-gradient-to-r from-slate-300/25 to-slate-400/20 text-slate-100 border-slate-300/60 shadow-[0_0_10px_rgba(148,163,184,0.3)]",
-        privilegeText: " Tích 1.5% Xu • Voucher sinh nhật 5%",
-        privilegePill: "bg-slate-900/70 border-slate-300/30 text-slate-200",
-        progressBg: "bg-gradient-to-r from-slate-300 via-slate-100 to-slate-300",
-        progressTrack: "bg-slate-900/70",
-        accentColor: "text-slate-300",
-        coinBadgeBg: "bg-slate-400/15",
+        triggerRing: "ring-[1.5px] ring-slate-400/60 hover:ring-slate-500 dark:ring-slate-400/50",
+        triggerGlow: "shadow-sm hover:shadow-md",
+        triggerBadgeBg: "bg-white/95 dark:bg-zinc-900/95 text-slate-600 dark:text-slate-300 border-slate-400/40 shadow-sm",
+        dropdownBorder: "border-slate-200/80 dark:border-white/12",
+        dropdownGlow: "",
+        cardBorder: "border-slate-400/25 dark:border-slate-300/15",
+        cardTint: "bg-gradient-to-br from-slate-400/[0.07] via-transparent to-indigo-400/[0.04]",
+        ambientPrimary: "bg-slate-400/25 dark:bg-slate-400/15",
+        ambientSecondary: "bg-sky-300/15 dark:bg-slate-500/15",
+        badgeBg: "bg-slate-500/10 text-slate-700 border-slate-400/25 dark:bg-slate-300/15 dark:text-slate-200 dark:border-slate-300/25",
+        privilegeText: "Tích 1.5% Xu • Voucher sinh nhật 5%",
+        privilegeTextColor: "text-slate-700 dark:text-zinc-200",
+        progressBg: "bg-gradient-to-r from-slate-500 to-slate-400 dark:from-slate-300 dark:to-slate-400",
+        accentColor: "text-slate-600 dark:text-slate-300",
+        coinBadgeBg: "bg-slate-500/10",
         coinBadgeText: "text-slate-700 dark:text-slate-300",
-        coinBadgeBorder: "border-slate-400/30",
-        coinHover: "hover:bg-slate-400/10 focus:bg-slate-400/10 group-hover:text-slate-700 dark:group-hover:text-slate-300",
+        coinBadgeBorder: "border-slate-400/25",
+        coinHover: "hover:bg-slate-500/[0.08] focus:bg-slate-500/[0.08] group-hover:text-slate-700 dark:group-hover:text-slate-300",
       };
 
     case "bronze":
@@ -184,27 +198,226 @@ function getTierTheme(tier: MembershipTier, role: string | null) {
         tagline: "ARTISAN BRONZE MEMBER",
         icon: "🥉",
         iconImg: "/icons/bronze.png",
-        triggerRing: "ring-2 ring-amber-700/60 dark:ring-amber-600/70 hover:ring-amber-600",
-        triggerGlow: "shadow-[0_0_10px_rgba(180,83,9,0.3)] hover:shadow-[0_0_16px_rgba(180,83,9,0.55)]",
-        triggerBadgeBg: "bg-[#2b160b] text-amber-200 border-amber-700/80 shadow-[0_0_8px_rgba(180,83,9,0.35)]",
-        dropdownBorder: "border-amber-700/35",
-        dropdownGlow: "shadow-[0_20px_60px_rgba(180,83,9,0.14)]",
-        cardBg: "bg-gradient-to-br from-[#21130a] via-[#351e12] to-[#190e07] text-white",
-        cardBorder: "border-amber-700/40",
-        cardGlow: "shadow-[0_8px_24px_rgba(180,83,9,0.22),inset_0_1px_1px_rgba(255,255,255,0.18)]",
-        cardShine: "bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-amber-600/25 via-orange-600/10 to-transparent",
-        badgeBg: "bg-gradient-to-r from-amber-700/30 to-amber-900/20 text-amber-200 border-amber-600/60 shadow-[0_0_10px_rgba(180,83,9,0.25)]",
-        privilegeText: " Tích 1% Xu • Điểm danh 200 Xu/ngày",
-        privilegePill: "bg-[#2b160b]/70 border-amber-700/30 text-amber-200",
-        progressBg: "bg-gradient-to-r from-amber-600 via-orange-400 to-amber-500",
-        progressTrack: "bg-[#1f0f07]",
-        accentColor: "text-amber-400",
-        coinBadgeBg: "bg-amber-700/15",
-        coinBadgeText: "text-amber-700 dark:text-amber-300",
-        coinBadgeBorder: "border-amber-700/30",
-        coinHover: "hover:bg-amber-700/10 focus:bg-amber-700/10 group-hover:text-amber-700 dark:group-hover:text-amber-400",
+        triggerRing: "ring-[1.5px] ring-amber-700/50 hover:ring-amber-700 dark:ring-amber-600/55",
+        triggerGlow: "shadow-sm hover:shadow-md",
+        triggerBadgeBg: "bg-white/95 dark:bg-zinc-900/95 text-amber-800 dark:text-amber-300 border-amber-700/35 shadow-sm",
+        dropdownBorder: "border-slate-200/80 dark:border-white/12",
+        dropdownGlow: "",
+        cardBorder: "border-amber-700/20 dark:border-amber-500/20",
+        cardTint: "bg-gradient-to-br from-amber-600/[0.06] via-transparent to-orange-500/[0.04]",
+        ambientPrimary: "bg-amber-500/20 dark:bg-amber-600/18",
+        ambientSecondary: "bg-orange-300/20 dark:bg-orange-500/12",
+        badgeBg: "bg-amber-700/10 text-amber-800 border-amber-700/20 dark:bg-amber-500/15 dark:text-amber-200 dark:border-amber-500/25",
+        privilegeText: "Tích 1% Xu • Điểm danh 200 Xu/ngày",
+        privilegeTextColor: "text-slate-700 dark:text-zinc-200",
+        progressBg: "bg-gradient-to-r from-amber-600 to-orange-500",
+        accentColor: "text-amber-700 dark:text-amber-400",
+        coinBadgeBg: "bg-amber-700/10",
+        coinBadgeText: "text-amber-800 dark:text-amber-300",
+        coinBadgeBorder: "border-amber-700/20",
+        coinHover: "hover:bg-amber-700/[0.08] focus:bg-amber-700/[0.08] group-hover:text-amber-700 dark:group-hover:text-amber-400",
       };
   }
+}
+
+type TierTheme = ReturnType<typeof getTierTheme>;
+
+interface HeaderAccountCardProps {
+  user: any;
+  profile: any;
+  role: string | null;
+  tierConfig: { name: string };
+  tierStyle: TierTheme;
+  progressPercent: number;
+  pointsToNext: number;
+  nextTierName: string;
+  nextTierIcon: string;
+  nextTierIconImg: string;
+  onNavigate?: (href: string, e: React.MouseEvent) => void;
+  className?: string;
+}
+
+/**
+ * Thẻ Thành Viên Glassmorphism tái sử dụng cho cả Mobile Sheet và Desktop Dropdown.
+ * Hiển thị thông tin tài khoản, hạng VIP, quyền lợi, tiến trình thăng hạng và số dư Xu.
+ */
+function HeaderAccountCard({
+  user,
+  profile,
+  role,
+  tierConfig,
+  tierStyle,
+  progressPercent,
+  pointsToNext,
+  nextTierName,
+  nextTierIcon,
+  nextTierIconImg,
+  onNavigate,
+  className,
+}: HeaderAccountCardProps) {
+  const displayName =
+    profile?.full_name || user.user_metadata?.full_name || user.email?.split("@")[0];
+  const avatarSrc =
+    profile?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture;
+  const coinsBalance = Number(profile?.coins_balance || 0);
+
+  return (
+    <div className={cn(GLASS_SURFACES.vipCard, tierStyle.cardBorder, "p-3.5", className)}>
+      {/* Lớp ánh sáng môi trường (Ambient Light Layer) nằm dưới lớp kính */}
+      <div className={cn("absolute inset-0 pointer-events-none", tierStyle.cardTint)} />
+      <div
+        className={cn(
+          "absolute -top-12 -right-12 w-36 h-36 rounded-full blur-2xl pointer-events-none",
+          tierStyle.ambientPrimary
+        )}
+      />
+      <div
+        className={cn(
+          "absolute -bottom-14 -left-10 w-32 h-32 rounded-full blur-2xl pointer-events-none",
+          tierStyle.ambientSecondary
+        )}
+      />
+
+      {/* Nội dung thẻ */}
+      <div className="relative z-10 space-y-2.5">
+        {/* 1. Avatar, Tên, Email & Badge Hạng */}
+        <div className="flex items-center gap-3">
+          <div className="relative shrink-0">
+            <Avatar className="h-11 w-11 ring-1 ring-slate-900/10 dark:ring-white/20 shadow-sm">
+              <AvatarImage src={avatarSrc} className="object-cover" />
+              <AvatarFallback className="bg-gradient-to-br from-primary/85 to-primary text-primary-foreground font-semibold text-sm">
+                {user.email?.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <span
+              className={cn(
+                "absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border flex items-center justify-center overflow-hidden p-0.5",
+                tierStyle.triggerBadgeBg
+              )}
+            >
+              {tierStyle.iconImg ? (
+                <Image
+                  src={tierStyle.iconImg}
+                  alt={tierStyle.name}
+                  width={13}
+                  height={13}
+                  unoptimized
+                  className="object-contain"
+                />
+              ) : (
+                <span className="text-[9px]">{tierStyle.icon}</span>
+              )}
+            </span>
+          </div>
+
+          <div className="flex flex-col min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-1.5">
+              <p className="text-[14px] font-semibold tracking-tight truncate text-slate-900 dark:text-white leading-tight">
+                {displayName}
+              </p>
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0 border uppercase tracking-wider backdrop-blur-sm",
+                  tierStyle.badgeBg
+                )}
+              >
+                {tierStyle.iconImg ? (
+                  <Image
+                    src={tierStyle.iconImg}
+                    alt={tierStyle.name}
+                    width={12}
+                    height={12}
+                    unoptimized
+                    className="object-contain shrink-0"
+                  />
+                ) : (
+                  <span>{tierStyle.icon}</span>
+                )}
+                <span>{role === "admin" ? "Admin" : role === "staff" ? "Staff" : tierConfig.name}</span>
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate font-mono mt-0.5">
+              {user.email}
+            </p>
+          </div>
+        </div>
+
+        {/* 2. Dải quyền lợi (Inner Frosted Strip) */}
+        <div
+          className={cn(
+            "px-2.5 py-1.5 rounded-xl text-[11px] font-medium flex items-center justify-between gap-2",
+            GLASS_SURFACES.innerStrip,
+            tierStyle.privilegeTextColor
+          )}
+        >
+          <span className="truncate">{tierStyle.privilegeText}</span>
+        </div>
+
+        {/* 3. Tiến trình thăng hạng (chỉ hiển thị cho Khách hàng) */}
+        {!role && (
+          <div className="space-y-1.5 pt-0.5">
+            <div className="flex items-center justify-between text-[11px]">
+              {pointsToNext > 0 ? (
+                <span className="text-slate-600 dark:text-zinc-300 font-medium truncate flex items-center gap-1">
+                  <span>Cần</span>
+                  <strong className="text-slate-900 dark:text-white font-semibold tabular-nums">
+                    {pointsToNext.toLocaleString("vi-VN")} Xu
+                  </strong>
+                  <span>lên</span>
+                  {nextTierIconImg ? (
+                    <Image
+                      src={nextTierIconImg}
+                      alt={nextTierName}
+                      width={13}
+                      height={13}
+                      unoptimized
+                      className="object-contain inline-block shrink-0"
+                    />
+                  ) : (
+                    <span>{nextTierIcon}</span>
+                  )}
+                  <span className="font-semibold text-slate-900 dark:text-white">{nextTierName}</span>
+                </span>
+              ) : (
+                <span className="text-cyan-700 dark:text-cyan-300 font-semibold flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 shrink-0" /> Đặc quyền VIP cao nhất
+                </span>
+              )}
+              <span className="text-slate-700 dark:text-zinc-200 font-mono text-[10.5px] font-semibold shrink-0 ml-1.5 tabular-nums">
+                {progressPercent}%
+              </span>
+            </div>
+
+            <div className={cn("h-1.5 w-full rounded-full overflow-hidden", GLASS_SURFACES.progressTrack)}>
+              <div
+                className={cn("h-full rounded-full transition-all duration-700", tierStyle.progressBg)}
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* 4. Chân thẻ: Số dư Xu & Liên kết đặc quyền */}
+        <Link
+          href="/account/coins"
+          onClick={onNavigate ? (e) => onNavigate("/account/coins", e) : undefined}
+          className="flex items-center justify-between text-[11.5px] pt-2 border-t border-slate-900/[0.07] dark:border-white/[0.08] text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white transition-colors group/link"
+        >
+          <span className="flex items-center gap-1.5">
+            <span className="font-medium">Ví Xu:</span>
+            <span className="font-mono text-amber-700 dark:text-amber-300 font-bold text-[12px] tabular-nums">
+              {coinsBalance.toLocaleString("vi-VN")} Xu
+            </span>
+          </span>
+          <span className="inline-flex items-center gap-0.5 font-semibold text-slate-700 dark:text-zinc-200 group-hover/link:text-primary dark:group-hover/link:text-white transition-colors shrink-0">
+            <span className="sm:hidden">Đặc quyền VIP</span>
+            <span className="hidden sm:inline">Xem đặc quyền VIP</span>
+            <ChevronRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover/link:translate-x-0.5" />
+          </span>
+        </Link>
+      </div>
+    </div>
+  );
 }
 
 export function SiteHeader() {
@@ -373,8 +586,8 @@ export function SiteHeader() {
     if (!user) {
       const updateGuestCount = () => {
         const items = getGuestCartItems();
-        const totalQty = items.reduce((sum, item) => sum + item.quantity, 0);
-        setCartCount(totalQty);
+        // Tính theo số lượng phân loại sản phẩm / biến thể trong giỏ hàng (items.length)
+        setCartCount(items.length);
         initialLoadDone.current = true;
       };
       setTimeout(updateGuestCount, 0);
@@ -421,101 +634,40 @@ export function SiteHeader() {
               <SheetContent
                 side="left"
                 onCloseAutoFocus={(e) => e.preventDefault()}
-                className="w-[310px] sm:w-[360px] p-0 flex flex-col h-full bg-background/80 backdrop-blur-2xl overflow-hidden border-r border-border/50 shadow-2xl"
+                className={cn(
+                  "w-[310px] sm:w-[360px] p-0 flex flex-col h-full overflow-hidden border-r border-slate-200/70 dark:border-white/10",
+                  GLASS_SURFACES.overlay
+                )}
               >
                 <SheetTitle className="sr-only">Menu Điều Hướng</SheetTitle>
                 {/* 1. Header Khu Vực Tài Khoản */}
-                <div className="p-4 sm:p-5 bg-card/40 border-b border-border/50 relative">
+                <div className="p-4 sm:p-5 bg-gradient-to-b from-slate-100/60 to-transparent dark:from-white/[0.03] dark:to-transparent border-b border-border/40 relative">
                   <div className="relative z-10">
                     {user ? (
                       <div className="space-y-3">
-                        {/* VIP Card Thượng Hạng for Mobile Sheet */}
-                        <div className={cn("p-4 rounded-[20px] relative overflow-hidden border shadow-lg transition-all", tierStyle.cardBg, tierStyle.cardBorder, tierStyle.cardGlow)}>
-                          <div className={cn("absolute inset-0 pointer-events-none", tierStyle.cardShine)} />
-                          <div className="absolute -top-10 -right-10 w-28 h-28 rounded-full blur-2xl opacity-40 pointer-events-none bg-white/20" />
-                          <div className="relative z-10 space-y-2.5">
-                            <div className="flex items-center gap-3">
-                              <div className="relative shrink-0">
-                                <Avatar className="h-12 w-12 ring-2 ring-white/30 shadow-md">
-                                  <AvatarImage src={profile?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture} className="object-cover" />
-                                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary/50 text-primary-foreground font-bold text-base">
-                                    {user.email?.charAt(0).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-black/70 border border-white/40 flex items-center justify-center text-[9px] shadow-sm overflow-hidden p-0.5">
-                                  {tierStyle.iconImg ? (
-                                    <Image
-                                      src={tierStyle.iconImg}
-                                      alt={tierStyle.name}
-                                      width={13}
-                                      height={13}
-                                      unoptimized
-                                      className="object-contain"
-                                    />
-                                  ) : (
-                                    tierStyle.icon
-                                  )}
-                                </span>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between gap-1.5">
-                                  <h4 className="font-extrabold text-[15px] truncate text-white leading-tight">
-                                    {profile?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0]}
-                                  </h4>
-                                  <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black shrink-0 border uppercase tracking-wider", tierStyle.badgeBg)}>
-                                    {tierStyle.iconImg ? (
-                                      <Image
-                                        src={tierStyle.iconImg}
-                                        alt={tierStyle.name}
-                                        width={13}
-                                        height={13}
-                                        unoptimized
-                                        className="object-contain shrink-0"
-                                      />
-                                    ) : (
-                                      <span>{tierStyle.icon}</span>
-                                    )}
-                                    <span>{role === "admin" ? "Admin" : role === "staff" ? "Staff" : tierConfig.name}</span>
-                                  </span>
-                                </div>
-                                <p className="text-[12px] text-white/70 truncate font-mono mt-0.5">{user.email}</p>
-                              </div>
-                            </div>
-
-                            {/* Privilege Ribbon */}
-                            <div className={cn("px-2.5 py-1.5 rounded-xl border text-[11px] font-medium flex items-center justify-between gap-1.5 shadow-inner", tierStyle.privilegePill)}>
-                              <span className="truncate">{tierStyle.privilegeText}</span>
-                              {/* <Sparkles className="w-3.5 h-3.5 shrink-0 opacity-80" /> */}
-                            </div>
-
-                            {/* Coin balance & VIP link */}
-                            <Link 
-                              href="/account/coins"
-                              onClick={(e) => handleMobileNav("/account/coins", e)}
-                              className="flex items-center justify-between text-[11.5px] font-bold text-white/90 hover:text-white pt-1 border-t border-white/10 transition-colors"
-                            >
-                              <span className="flex items-center gap-1.5">
-                                <span>Ví Xu:</span>
-                                <span className="font-mono text-amber-300 font-extrabold text-[12.5px]">
-                                  {Number(profile?.coins_balance || 0).toLocaleString("vi-VN")} Xu
-                                </span>
-                              </span>
-                              <span className="inline-flex items-center gap-0.5 text-white/80">
-                                <span>Xem đặc quyền VIP</span>
-                                <ChevronRight className="w-3.5 h-3.5" />
-                              </span>
-                            </Link>
-                          </div>
-                        </div>
+                        {/* Thẻ thành viên Glassmorphism (dùng chung component với Desktop) */}
+                        <HeaderAccountCard
+                          user={user}
+                          profile={profile}
+                          role={role}
+                          tierConfig={tierConfig}
+                          tierStyle={tierStyle}
+                          progressPercent={progressPercent}
+                          pointsToNext={pointsToNext}
+                          nextTierName={nextTierName}
+                          nextTierIcon={nextTierIcon}
+                          nextTierIconImg={nextTierIconImg}
+                          onNavigate={handleMobileNav}
+                        />
 
                         {/* Nút vào Bảng Quản Trị dành riêng cho Admin */}
                         {role === "admin" && (
                           <Link
                             href="/dashboard"
                             onClick={(e) => handleMobileNav("/dashboard", e)}
-                            className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-[14px] bg-gradient-to-r from-red-600 to-amber-600 text-white font-bold text-[14.5px] shadow-md shadow-red-500/20 hover:opacity-90 hover:scale-[1.02] transition-all duration-300"
+                            className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-rose-500/10 hover:bg-rose-500/15 border border-rose-500/20 text-rose-700 dark:text-rose-300 font-semibold text-[13.5px] transition-all duration-200"
                           >
-                            <Image src="/icons/dashboard3.png" alt="Logo" width={22} height={22} className="object-contain" /> Bảng Quản Trị (Admin)
+                            <Image src="/icons/dashboard3.png" alt="Logo" width={20} height={20} className="object-contain" /> Bảng Quản Trị (Admin)
                           </Link>
                         )}
                       </div>
@@ -709,7 +861,7 @@ export function SiteHeader() {
                 </div>
 
                 {/* 3. Chân Drawer */}
-                <div className="p-4 border-t border-border/50 bg-card/40 space-y-3 mt-auto">
+                <div className="p-4 border-t border-border/40 bg-white/40 dark:bg-white/[0.02] backdrop-blur-md space-y-3 mt-auto">
                   <div className="flex items-center justify-between px-3 py-2">
                     <span className="text-[13.5px] font-bold text-foreground/80">Giao diện (Sáng/Tối)</span>
                     <ThemeToggle />
@@ -950,138 +1102,28 @@ export function SiteHeader() {
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                sideOffset={8}
+                sideOffset={10}
                 className={cn(
-                  "w-[340px] p-2 rounded-[24px] shadow-2xl border bg-card/95 backdrop-blur-2xl z-[100] transition-all",
+                  "w-[348px] p-2 rounded-[22px] border z-[100] transition-all",
+                  GLASS_SURFACES.overlay,
                   tierStyle.dropdownBorder,
                   tierStyle.dropdownGlow
                 )}
               >
-                {/* 1. VIP Membership Card Header */}
-                <div className={cn("p-3.5 rounded-[18px] relative overflow-hidden border mb-1.5 transition-all", tierStyle.cardBg, tierStyle.cardBorder, tierStyle.cardGlow)}>
-                  {/* Ambient radial shine */}
-                  <div className={cn("absolute inset-0 pointer-events-none", tierStyle.cardShine)} />
-                  <div className="absolute -top-10 -right-10 w-28 h-28 rounded-full blur-2xl opacity-40 pointer-events-none bg-white/20" />
-
-                  <div className="relative z-10 space-y-2.5">
-                    {/* Top: Avatar, Name, Email & Tier Badge */}
-                    <div className="flex items-center gap-3">
-                      <div className="relative shrink-0">
-                        <Avatar className="h-11 w-11 ring-2 ring-white/30 shadow-md">
-                          <AvatarImage src={profile?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture} className="object-cover" />
-                          <AvatarFallback className="bg-gradient-to-br from-primary to-primary/50 text-primary-foreground font-bold text-sm">
-                            {user.email?.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-black/70 border border-white/40 flex items-center justify-center shadow-sm overflow-hidden p-0.5">
-                          {tierStyle.iconImg ? (
-                            <Image
-                              src={tierStyle.iconImg}
-                              alt={tierStyle.name}
-                              width={16}
-                              height={16}
-                              unoptimized
-                              className="object-contain"
-                            />
-                          ) : (
-                            <span className="text-[9px]">{tierStyle.icon}</span>
-                          )}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-1.5">
-                          <p className="text-[14.5px] font-extrabold truncate text-white leading-tight drop-shadow-xs">
-                            {profile?.full_name || user.email?.split('@')[0]}
-                          </p>
-                          <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-black shrink-0 border uppercase tracking-wider", tierStyle.badgeBg)}>
-                            {tierStyle.iconImg ? (
-                              <Image
-                                src={tierStyle.iconImg}
-                                alt={tierStyle.name}
-                                width={16}
-                                height={16}
-                                unoptimized
-                                className="object-contain shrink-0"
-                              />
-                            ) : (
-                              <span>{tierStyle.icon}</span>
-                            )}
-                            <span>{role === "admin" ? "Admin" : role === "staff" ? "Staff" : tierConfig.name}</span>
-                          </span>
-                        </div>
-                        <p className="text-[11.5px] text-white/70 truncate font-mono font-medium mt-0.5">
-                          {user.email}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Middle: Privilege Ribbon */}
-                    <div className={cn("px-2.5 py-1.5 rounded-xl border text-[11px]  font-medium flex items-center justify-between gap-2 shadow-inner", tierStyle.privilegePill)}>
-                      <span className="truncate">{tierStyle.privilegeText}</span>
-                      {/* <Sparkles className="w-3.5 h-3.5 shrink-0 opacity-80" /> */}
-                    </div>
-
-                    {/* Bottom: Progress to Next Tier (For Customer) */}
-                    {!role && (
-                      <div className="space-y-1 pt-0.5">
-                        <div className="flex items-center justify-between text-[11px]">
-                          {pointsToNext > 0 ? (
-                            <span className="text-white/80 font-medium truncate flex items-center gap-1">
-                              <span>Cần</span>
-                              <strong className="text-white font-bold">{pointsToNext.toLocaleString("vi-VN")} Xu</strong>
-                              <span>lên</span>
-                              {nextTierIconImg ? (
-                                <Image
-                                  src={nextTierIconImg}
-                                  alt={nextTierName}
-                                  width={16}
-                                  height={16}
-                                  unoptimized
-                                  className="object-contain inline-block shrink-0 -mt-0.5"
-                                />
-                              ) : (
-                                <span>{nextTierIcon}</span>
-                              )}
-                              <span className="font-bold text-white">{nextTierName}</span>
-                            </span>
-                          ) : (
-                            <span className="text-cyan-200 font-bold flex items-center gap-1">
-                              <Sparkles className="w-3 h-3 text-cyan-300" /> Đặc quyền VIP cao nhất
-                            </span>
-                          )}
-                          <span className="text-white/90 font-mono font-bold shrink-0 ml-1.5">
-                            {progressPercent}%
-                          </span>
-                        </div>
-
-                        <div className={cn("h-1.5 w-full rounded-full overflow-hidden p-0.5 shadow-inner", tierStyle.progressTrack)}>
-                          <div
-                            className={cn("h-full rounded-full transition-all duration-700", tierStyle.progressBg)}
-                            style={{ width: `${progressPercent}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Action link inside card */}
-                    <Link 
-                      href="/account/coins"
-                      className="flex items-center justify-between text-[11px] font-bold text-white/90 hover:text-white pt-1 border-t border-white/10 transition-colors group/link"
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <span>Ví Xu:</span>
-                        <span className="font-mono text-amber-300 font-extrabold text-[12px]">
-                          {Number(profile?.coins_balance || 0).toLocaleString("vi-VN")} Xu
-                        </span>
-                      </span>
-                      <span className="inline-flex items-center gap-0.5 group-hover/link:translate-x-0.5 transition-transform text-white/80">
-                        <span>Xem đặc quyền VIP</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </span>
-                    </Link>
-                  </div>
-                </div>
+                {/* 1. Thẻ Thành Viên Glassmorphism */}
+                <HeaderAccountCard
+                  user={user}
+                  profile={profile}
+                  role={role}
+                  tierConfig={tierConfig}
+                  tierStyle={tierStyle}
+                  progressPercent={progressPercent}
+                  pointsToNext={pointsToNext}
+                  nextTierName={nextTierName}
+                  nextTierIcon={nextTierIcon}
+                  nextTierIconImg={nextTierIconImg}
+                  className="mb-1.5"
+                />
 
                 <div className="space-y-0.5 pt-0.5">
                   {/* 1. Ví Xu */}

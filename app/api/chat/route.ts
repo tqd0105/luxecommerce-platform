@@ -51,6 +51,7 @@ export async function POST(req: Request) {
 
     // Kiểm tra cấu hình API Key
     if (!process.env.GEMINI_API_KEY) {
+      console.warn("⚠️ Chatbot API: Thiếu biến môi trường GEMINI_API_KEY trên máy chủ");
       return NextResponse.json({
         reply: "Dạ em chào anh/chị! Hiện tại hệ thống trợ lý AI đang gặp vấn đề kết nối với hệ thống ChatBot. Anh/chị có thể liên hệ hotline 1900 6868 để được hỗ trợ tức thì ạ!",
         recommendedProducts: [],
